@@ -16,6 +16,7 @@ from api.v1.memory import router as memory_router
 from api.v1.validation import router as validation_router
 from infrastructure.logging_config import logger
 from infrastructure.config import settings
+from core.service_registry import initialize_default_connectors
 
 
 @asynccontextmanager
@@ -29,6 +30,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"API Version: {settings.API_VERSION}")
 
     # Initialize infrastructure components
+    # Initialize default data connectors
+    initialize_default_connectors()
+    logger.info("Default connectors initialized")
+
     # TODO: Initialize Redis connection
     # TODO: Initialize PostgreSQL connection
     # TODO: Initialize Kafka producer/consumer
