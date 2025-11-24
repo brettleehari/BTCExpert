@@ -17,6 +17,7 @@ from api.v1.validation import router as validation_router
 from infrastructure.logging_config import logger
 from infrastructure.config import settings
 from core.service_registry import initialize_default_connectors
+from infrastructure.redis_manager import get_redis_manager
 
 
 @asynccontextmanager
@@ -34,7 +35,14 @@ async def lifespan(app: FastAPI):
     initialize_default_connectors()
     logger.info("Default connectors initialized")
 
-    # TODO: Initialize Redis connection
+    # Initialize Redis connection (STM)
+    try:
+        redis_manager = get_redis_manager()
+        redis_manager.connect()
+        logger.info("✅ Redis (STM) connected successfully")
+    except Exception as e:
+        logger.warning(f"⚠️  Redis connection failed: {e}. STM will not be available.")
+
     # TODO: Initialize PostgreSQL connection
     # TODO: Initialize Kafka producer/consumer
 
@@ -42,7 +50,15 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("🛑 CIAL is shutting down...")
-    # TODO: Close Redis connection
+
+    # Close Redis connection
+    try:
+        redis_manager = get_redis_manager()
+        redis_manager.disconnect()
+        logger.info("Redis disconnected")
+    except:
+        pass
+
     # TODO: Close PostgreSQL connection
     # TODO: Close Kafka connections
 
@@ -103,6 +119,15 @@ async def health_check():
     Returns:
         dict: Service health status and component checks
     """
+    # Check Redis connection
+    redis_status = "disconnected"
+    try:
+        redis_manager = get_redis_manager()
+        if redis_manager.is_connected():
+            redis_status = "connected"
+    except:
+        pass
+
     return {
         "status": "healthy",
         "service": "CIAL",
@@ -111,7 +136,7 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "components": {
             "api": "operational",
-            "redis": "pending",  # TODO: Add actual health checks
+            "redis": redis_status,
             "postgres": "pending",
             "kafka": "pending",
         }

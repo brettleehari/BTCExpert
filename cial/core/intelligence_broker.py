@@ -14,6 +14,7 @@ from api.models.intelligence import (
 )
 from core.agent_registry import get_agent_registry
 from infrastructure.logging_config import logger, log_intelligence_event
+from memory.short_term_memory import get_short_term_memory
 
 
 class IntelligenceBroker:
@@ -30,6 +31,7 @@ class IntelligenceBroker:
 
     def __init__(self):
         self.agent_registry = get_agent_registry()
+        self.stm = get_short_term_memory()
         self._connectors: Dict[str, DataConnector] = {}
         self._message_history: List[IntelligenceMessage] = []
         self._routing_stats = defaultdict(int)
@@ -80,10 +82,13 @@ class IntelligenceBroker:
         # 4. Classify importance
         classified_message = self._classify_importance(enriched_message)
 
-        # 5. Route to interested agents
+        # 5. Cache in Short-Term Memory
+        self.stm.cache_intelligence(classified_message)
+
+        # 6. Route to interested agents
         routed_count = self._route_to_agents(classified_message)
 
-        # 6. Store in history (limited size)
+        # 7. Store in history (limited size)
         self._store_message(classified_message)
 
         # 7. Log intelligence event
