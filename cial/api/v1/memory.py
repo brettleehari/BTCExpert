@@ -7,8 +7,10 @@ from fastapi import APIRouter, HTTPException, Path, Body
 from typing import Optional, Dict, Any
 
 from memory.short_term_memory import get_short_term_memory
+from memory.long_term_memory import get_long_term_memory
 from api.models.intelligence import IntelligenceType
 from infrastructure.logging_config import logger
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -220,14 +222,198 @@ async def get_agent_patterns(agent_id: str):
     }
 
 
-@router.post("/ltm/{agent_id}/learn")
-async def store_learning(agent_id: str):
+@router.get("/ltm/intelligence/{intelligence_id}")
+async def get_ltm_intelligence(intelligence_id: str):
     """
-    Store agent learning outcome in long-term memory.
+    Retrieve intelligence from Long-Term Memory by ID.
+
+    Returns:
+        dict: Intelligence record from PostgreSQL
     """
-    # TODO: Implement learning storage
+    ltm = get_long_term_memory()
+    intelligence = await ltm.get_intelligence(intelligence_id)
+
+    if not intelligence:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Intelligence {intelligence_id} not found in LTM"
+        )
+
+    return intelligence
+
+
+@router.get("/ltm/prices/{symbol}/history")
+async def get_price_history(
+    symbol: str,
+    days: int = 7
+):
+    """
+    Get historical price data for a symbol.
+
+    Args:
+        symbol: Cryptocurrency symbol
+        days: Number of days of history
+
+    Returns:
+        list: Historical price records
+    """
+    ltm = get_long_term_memory()
+    start_time = datetime.utcnow() - timedelta(days=days)
+
+    prices = await ltm.get_historical_prices(
+        symbol=symbol,
+        start_time=start_time,
+        limit=1000
+    )
+
     return {
-        "agent_id": agent_id,
-        "status": "pending_implementation",
-        "message": "Learning storage endpoint will be implemented in Session 6"
+        "symbol": symbol,
+        "days": days,
+        "total_records": len(prices),
+        "prices": prices
     }
+
+
+@router.get("/ltm/prices/{symbol}/trends")
+async def get_price_trends(
+    symbol: str,
+    days: int = 7
+):
+    """
+    Get price trend analysis for a symbol.
+
+    Args:
+        symbol: Cryptocurrency symbol
+        days: Number of days to analyze
+
+    Returns:
+        dict: Trend analysis including avg, min, max, volatility
+    """
+    ltm = get_long_term_memory()
+    trends = await ltm.get_price_trends(symbol, days)
+
+    if not trends:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No price data found for {symbol}"
+        )
+
+    return trends
+
+
+@router.get("/ltm/sentiment/history")
+async def get_sentiment_history(
+    symbol: Optional[str] = None,
+    days: int = 7
+):
+    """
+    Get historical sentiment data.
+
+    Args:
+        symbol: Optional symbol filter
+        days: Number of days of history
+
+    Returns:
+        list: Historical sentiment records
+    """
+    ltm = get_long_term_memory()
+    sentiment = await ltm.get_sentiment_history(symbol, days)
+
+    return {
+        "symbol": symbol or "all",
+        "days": days,
+        "total_records": len(sentiment),
+        "sentiment": sentiment
+    }
+
+
+@router.get("/ltm/whale/movements")
+async def get_whale_movements(
+    symbol: Optional[str] = None,
+    min_amount_usd: float = 1000000,
+    days: int = 30
+):
+    """
+    Get whale movement history.
+
+    Args:
+        symbol: Optional symbol filter
+        min_amount_usd: Minimum transaction amount
+        days: Number of days of history
+
+    Returns:
+        list: Whale movement records
+    """
+    ltm = get_long_term_memory()
+    movements = await ltm.get_whale_movements(symbol, min_amount_usd, days)
+
+    return {
+        "symbol": symbol or "all",
+        "min_amount_usd": min_amount_usd,
+        "days": days,
+        "total_movements": len(movements),
+        "movements": movements
+    }
+
+
+@router.get("/ltm/events/critical")
+async def get_critical_events(days: int = 7):
+    """
+    Get recent critical intelligence events.
+
+    Args:
+        days: Number of days of history
+
+    Returns:
+        list: Critical intelligence records
+    """
+    ltm = get_long_term_memory()
+    events = await ltm.get_critical_events(days)
+
+    return {
+        "days": days,
+        "total_events": len(events),
+        "events": events
+    }
+
+
+@router.get("/ltm/search")
+async def search_ltm(
+    query: str,
+    intelligence_type: Optional[str] = None,
+    limit: int = 50
+):
+    """
+    Search intelligence in Long-Term Memory.
+
+    Args:
+        query: Search query
+        intelligence_type: Optional type filter
+        limit: Maximum results
+
+    Returns:
+        list: Matching intelligence records
+    """
+    ltm = get_long_term_memory()
+    results = await ltm.search_intelligence(query, intelligence_type, limit)
+
+    return {
+        "query": query,
+        "intelligence_type": intelligence_type,
+        "total_results": len(results),
+        "results": results
+    }
+
+
+@router.get("/ltm/stats")
+async def get_ltm_stats():
+    """
+    Get Long-Term Memory statistics.
+
+    Returns:
+        dict: LTM statistics including record counts and analytics
+    """
+    ltm = get_long_term_memory()
+    stats = await ltm.get_ltm_stats()
+
+    return stats

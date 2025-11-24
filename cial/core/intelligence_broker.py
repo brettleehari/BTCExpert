@@ -15,7 +15,9 @@ from api.models.intelligence import (
 from core.agent_registry import get_agent_registry
 from infrastructure.logging_config import logger, log_intelligence_event
 from memory.short_term_memory import get_short_term_memory
+from memory.long_term_memory import get_long_term_memory
 from infrastructure.kafka_manager import get_kafka_manager
+import asyncio
 
 
 class IntelligenceBroker:
@@ -33,6 +35,7 @@ class IntelligenceBroker:
     def __init__(self):
         self.agent_registry = get_agent_registry()
         self.stm = get_short_term_memory()
+        self.ltm = get_long_term_memory()
         self.kafka = None  # Lazy initialization
         self._connectors: Dict[str, DataConnector] = {}
         self._message_history: List[IntelligenceMessage] = []
@@ -93,10 +96,13 @@ class IntelligenceBroker:
         # 7. Route to interested agents
         routed_count = self._route_to_agents(classified_message)
 
-        # 7. Store in history (limited size)
+        # 8. Store in Long-Term Memory (async, non-blocking)
+        self._store_in_ltm(classified_message, routed_count)
+
+        # 9. Store in history (limited size)
         self._store_message(classified_message)
 
-        # 7. Log intelligence event
+        # 10. Log intelligence event
         log_intelligence_event(
             event_type=classified_message.type.value,
             source=source,
@@ -247,6 +253,29 @@ class IntelligenceBroker:
         except Exception as e:
             # Don't fail the pipeline if Kafka publishing fails
             logger.warning(f"Kafka publishing error: {e}")
+
+    def _store_in_ltm(self, message: IntelligenceMessage, routed_to_count: int):
+        """
+        Store intelligence in Long-Term Memory (async, non-blocking).
+
+        Args:
+            message: Intelligence message to store
+            routed_to_count: Number of agents message was routed to
+        """
+        try:
+            # Create async task for LTM storage (non-blocking)
+            asyncio.create_task(
+                self.ltm.store_intelligence(message, routed_to_count)
+            )
+
+            logger.debug(
+                f"LTM storage initiated",
+                message_id=message.id
+            )
+
+        except Exception as e:
+            # Don't fail the pipeline if LTM storage fails
+            logger.warning(f"LTM storage error: {e}")
 
     def _route_to_agents(self, message: IntelligenceMessage) -> int:
         """

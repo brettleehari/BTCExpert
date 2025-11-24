@@ -19,6 +19,7 @@ from infrastructure.config import settings
 from core.service_registry import initialize_default_connectors
 from infrastructure.redis_manager import get_redis_manager
 from infrastructure.kafka_manager import get_kafka_manager
+from infrastructure.postgres_manager import get_postgres_manager
 
 
 @asynccontextmanager
@@ -52,7 +53,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️  Kafka connection failed: {e}. Event streaming will not be available.")
 
-    # TODO: Initialize PostgreSQL connection
+    # Initialize PostgreSQL connection (LTM)
+    try:
+        postgres_manager = get_postgres_manager()
+        await postgres_manager.connect()
+        logger.info("✅ PostgreSQL (LTM) connected successfully")
+    except Exception as e:
+        logger.warning(f"⚠️  PostgreSQL connection failed: {e}. LTM will not be available.")
 
     yield
 
@@ -75,7 +82,13 @@ async def lifespan(app: FastAPI):
     except:
         pass
 
-    # TODO: Close PostgreSQL connection
+    # Close PostgreSQL connection
+    try:
+        postgres_manager = get_postgres_manager()
+        await postgres_manager.disconnect()
+        logger.info("PostgreSQL disconnected")
+    except:
+        pass
 
 
 # Create FastAPI application
@@ -152,6 +165,15 @@ async def health_check():
     except:
         pass
 
+    # Check PostgreSQL connection
+    postgres_status = "disconnected"
+    try:
+        postgres_manager = get_postgres_manager()
+        if postgres_manager.is_connected():
+            postgres_status = "connected"
+    except:
+        pass
+
     return {
         "status": "healthy",
         "service": "CIAL",
@@ -161,7 +183,7 @@ async def health_check():
         "components": {
             "api": "operational",
             "redis": redis_status,
-            "postgres": "pending",
+            "postgres": postgres_status,
             "kafka": kafka_status,
         }
     }
