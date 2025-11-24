@@ -30,7 +30,7 @@ class IntelligenceRecord(Base):
     source = Column(String, nullable=False, index=True)
     symbol = Column(String, nullable=True, index=True)
     data = Column(JSON, nullable=False)
-    metadata = Column(JSON, nullable=True)
+    meta_data = Column(JSON, nullable=True)
     timestamp = Column(DateTime, nullable=False, index=True)
     validated = Column(Boolean, default=False)
 
@@ -56,7 +56,7 @@ class AgentRecord(Base):
     registered_at = Column(DateTime, nullable=False)
     last_active = Column(DateTime, nullable=False)
     total_messages_received = Column(Integer, default=0)
-    metadata = Column(JSON, nullable=True)
+    meta_data = Column(JSON, nullable=True)
 
 
 class PostgresManager:
@@ -165,7 +165,7 @@ class PostgresManager:
         source: str,
         data: Dict[str, Any],
         symbol: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        meta_data: Optional[Dict[str, Any]] = None,
         timestamp: Optional[datetime] = None,
         validated: bool = False,
         routed_to_count: int = 0
@@ -180,7 +180,7 @@ class PostgresManager:
             source: Data source
             data: Intelligence data
             symbol: Optional symbol
-            metadata: Optional metadata
+            meta_data: Optional metadata
             timestamp: Message timestamp
             validated: Validation status
             routed_to_count: Number of agents routed to
@@ -197,7 +197,7 @@ class PostgresManager:
                     source=source,
                     symbol=symbol,
                     data=data,
-                    metadata=metadata or {},
+                    meta_data=meta_data or {},
                     timestamp=timestamp or datetime.utcnow(),
                     validated=validated,
                     routed_to_count=routed_to_count,
@@ -387,7 +387,7 @@ class PostgresManager:
         capabilities: Dict[str, Any],
         status: str,
         registered_at: datetime,
-        metadata: Optional[Dict[str, Any]] = None
+        meta_data: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Store agent registration in long-term memory.
@@ -398,7 +398,7 @@ class PostgresManager:
             capabilities: Agent capabilities
             status: Current status
             registered_at: Registration timestamp
-            metadata: Optional metadata
+            meta_data: Optional metadata
 
         Returns:
             bool: True if stored successfully
@@ -413,7 +413,7 @@ class PostgresManager:
                     registered_at=registered_at,
                     last_active=registered_at,
                     total_messages_received=0,
-                    metadata=metadata or {}
+                    meta_data=meta_data or {}
                 )
 
                 session.add(record)

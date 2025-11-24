@@ -41,9 +41,11 @@ class AgentType(str, Enum):
 
 class AgentStatus(str, Enum):
     """Agent operational status"""
+    INITIALIZING = "initializing"
     ACTIVE = "active"
     INACTIVE = "inactive"
     PAUSED = "paused"
+    STOPPED = "stopped"
     ERROR = "error"
 
 
