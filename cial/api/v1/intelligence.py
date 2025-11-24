@@ -16,6 +16,7 @@ from api.models.intelligence import (
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
 from infrastructure.logging_config import logger
+from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
 
 router = APIRouter()
 
@@ -72,8 +73,7 @@ async def get_current_price(
     """
     Get current price intelligence for a cryptocurrency.
 
-    Note: This endpoint will be fully implemented in Session 5 (CoinGecko Connector).
-    Currently returns the most recent price intelligence from the broker.
+    Returns the most recent cached price from STM.
 
     Returns:
         IntelligenceMessage: Most recent price intelligence
@@ -92,6 +92,91 @@ async def get_current_price(
         )
 
     return messages[0]
+
+
+@router.get("/price/{symbol}/live")
+async def get_live_price(
+    symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")
+):
+    """
+    Fetch live price from CoinGecko and ingest into CIAL pipeline.
+
+    This endpoint:
+    1. Fetches current price from CoinGecko
+    2. Validates and enriches the data
+    3. Classifies importance
+    4. Caches in STM
+    5. Routes to interested agents
+    6. Returns the intelligence message
+
+    Returns:
+        IntelligenceMessage: Fresh price intelligence from CoinGecko
+    """
+    try:
+        connector = get_coingecko_connector()
+        success = await connector.ingest_price_intelligence(symbol)
+
+        if not success:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Failed to fetch price for {symbol.upper()} from CoinGecko"
+            )
+
+        # Get the freshly cached price
+        broker = get_intelligence_broker()
+        messages = broker.get_recent_intelligence(
+            intelligence_type=IntelligenceType.PRICE,
+            symbol=symbol.upper(),
+            limit=1
+        )
+
+        if not messages:
+            raise HTTPException(
+                status_code=500,
+                detail="Price was fetched but not found in cache"
+            )
+
+        return messages[0]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch live price: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch live price")
+
+
+@router.post("/price/batch")
+async def get_batch_prices(
+    symbols: list[str] = Body(..., description="List of cryptocurrency symbols", example=["BTC", "ETH", "SOL"])
+):
+    """
+    Fetch live prices for multiple cryptocurrencies in a single request.
+
+    This is more efficient than making individual requests.
+
+    Returns:
+        dict: Symbol -> Price data mapping
+    """
+    try:
+        connector = get_coingecko_connector()
+        prices = await connector.get_prices_batch(symbols)
+
+        if not prices:
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to fetch batch prices from CoinGecko"
+            )
+
+        return {
+            "total": len(prices),
+            "prices": prices
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch batch prices: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch batch prices")
 
 
 @router.get("/sentiment/{symbol}/current")

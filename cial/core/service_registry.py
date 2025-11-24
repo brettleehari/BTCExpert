@@ -266,10 +266,10 @@ def initialize_default_connectors():
         # CoinGecko
         registry.register_connector(
             connector_id="coingecko",
-            name="CoinGecko",
+            name="CoinGecko Price API",
             intelligence_types=[IntelligenceType.PRICE],
             rate_limit="50/minute",
-            metadata={"website": "https://coingecko.com"}
+            metadata={"website": "https://coingecko.com", "version": "v3"}
         )
 
         # NewsAPI
