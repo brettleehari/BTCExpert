@@ -15,6 +15,7 @@ from api.models.intelligence import (
 from core.agent_registry import get_agent_registry
 from infrastructure.logging_config import logger, log_intelligence_event
 from memory.short_term_memory import get_short_term_memory
+from infrastructure.kafka_manager import get_kafka_manager
 
 
 class IntelligenceBroker:
@@ -32,6 +33,7 @@ class IntelligenceBroker:
     def __init__(self):
         self.agent_registry = get_agent_registry()
         self.stm = get_short_term_memory()
+        self.kafka = None  # Lazy initialization
         self._connectors: Dict[str, DataConnector] = {}
         self._message_history: List[IntelligenceMessage] = []
         self._routing_stats = defaultdict(int)
@@ -85,7 +87,10 @@ class IntelligenceBroker:
         # 5. Cache in Short-Term Memory
         self.stm.cache_intelligence(classified_message)
 
-        # 6. Route to interested agents
+        # 6. Publish to Kafka event stream
+        self._publish_to_kafka(classified_message)
+
+        # 7. Route to interested agents
         routed_count = self._route_to_agents(classified_message)
 
         # 7. Store in history (limited size)
@@ -205,6 +210,43 @@ class IntelligenceBroker:
 
         message.importance = importance
         return message
+
+    def _publish_to_kafka(self, message: IntelligenceMessage):
+        """
+        Publish intelligence message to Kafka event stream.
+
+        Args:
+            message: Intelligence message to publish
+        """
+        try:
+            # Lazy initialization of Kafka
+            if self.kafka is None:
+                try:
+                    self.kafka = get_kafka_manager()
+                    if not self.kafka.is_connected():
+                        logger.debug("Kafka not connected, attempting connection...")
+                        # Kafka might not be available in all environments
+                        return
+                except Exception as e:
+                    logger.debug(f"Kafka not available: {e}")
+                    return
+
+            # Publish message
+            success = self.kafka.publish_intelligence(message)
+
+            if success:
+                logger.debug(
+                    f"Intelligence published to Kafka",
+                    message_id=message.id,
+                    type=message.type.value,
+                    importance=message.importance.value
+                )
+            else:
+                logger.warning(f"Failed to publish intelligence to Kafka: {message.id}")
+
+        except Exception as e:
+            # Don't fail the pipeline if Kafka publishing fails
+            logger.warning(f"Kafka publishing error: {e}")
 
     def _route_to_agents(self, message: IntelligenceMessage) -> int:
         """
