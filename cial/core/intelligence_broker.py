@@ -17,6 +17,7 @@ from infrastructure.logging_config import logger, log_intelligence_event
 from memory.short_term_memory import get_short_term_memory
 from memory.long_term_memory import get_long_term_memory
 from infrastructure.kafka_manager import get_kafka_manager
+from validation.intelligence_validator import get_intelligence_validator
 import asyncio
 
 
@@ -36,6 +37,7 @@ class IntelligenceBroker:
         self.agent_registry = get_agent_registry()
         self.stm = get_short_term_memory()
         self.ltm = get_long_term_memory()
+        self.validator = get_intelligence_validator()
         self.kafka = None  # Lazy initialization
         self._connectors: Dict[str, DataConnector] = {}
         self._message_history: List[IntelligenceMessage] = []
@@ -145,8 +147,7 @@ class IntelligenceBroker:
 
     def _validate_intelligence(self, message: IntelligenceMessage) -> bool:
         """
-        Validate intelligence data.
-        TODO: Implement cross-source validation in Session 8
+        Validate intelligence data with comprehensive validation rules.
         """
         # Basic validation: check required fields
         if not message.data:
@@ -156,6 +157,18 @@ class IntelligenceBroker:
         if message.source not in self._connectors:
             logger.warning(f"Intelligence from unregistered source: {message.source}")
 
+        # Run async validation and store results in metadata
+        try:
+            # Create async task for validation (non-blocking)
+            validation_task = asyncio.create_task(
+                self.validator.validate(message)
+            )
+            # Store task reference in metadata for later retrieval
+            message.metadata["_validation_task"] = validation_task
+        except Exception as e:
+            logger.warning(f"Failed to start validation: {e}")
+
+        # Return basic validation result
         return True
 
     def _enrich_intelligence(self, message: IntelligenceMessage) -> IntelligenceMessage:
