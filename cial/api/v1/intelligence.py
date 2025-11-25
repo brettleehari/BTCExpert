@@ -1,10 +1,14 @@
 """
 CIAL Intelligence API Router
 Endpoints for accessing market intelligence
+
+Version: 1.0 (with versioned responses)
 """
 
-from fastapi import APIRouter, HTTPException, Query, Path, Body
-from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Query, Path, Body, Request
+from typing import Optional, Dict, Any, List
+import time
+import uuid
 
 from api.models.intelligence import (
     IntelligenceMessage,
@@ -13,12 +17,29 @@ from api.models.intelligence import (
     IntelligenceImportance,
     DataConnector
 )
+from api.models.responses import (
+    success_response,
+    error_response,
+    paginated_response,
+    APIVersion,
+    VersionedResponse
+)
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
 from infrastructure.logging_config import logger
 from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
 
 router = APIRouter()
+
+
+def _get_request_metadata(request: Request, start_time: float) -> Dict[str, Any]:
+    """Build metadata for API responses"""
+    return {
+        "request_id": str(uuid.uuid4()),
+        "processing_time_ms": round((time.time() - start_time) * 1000, 2),
+        "path": str(request.url.path),
+        "method": request.method
+    }
 
 
 @router.get("/stream/{stream_type}", response_model=IntelligenceStreamResponse)
@@ -68,6 +89,7 @@ async def get_intelligence_stream(
 
 @router.get("/price/{symbol}/current")
 async def get_current_price(
+    request: Request,
     symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")
 ):
     """
@@ -75,9 +97,31 @@ async def get_current_price(
 
     Returns the most recent cached price from STM.
 
+    **Response Format (v1.0):**
+    ```json
+    {
+        "version": "1.0",
+        "status": "success",
+        "data": {
+            "id": "price_BTC_20240115_103000_abc123",
+            "type": "price",
+            "symbol": "BTC",
+            "data": {"current_price": 45000.0, ...},
+            ...
+        },
+        "metadata": {
+            "timestamp": "2024-01-15T10:30:00Z",
+            "request_id": "xyz789",
+            "processing_time_ms": 12.5
+        }
+    }
+    ```
+
     Returns:
-        IntelligenceMessage: Most recent price intelligence
+        VersionedResponse[IntelligenceMessage]: Versioned price intelligence
     """
+    start_time = time.time()
+
     broker = get_intelligence_broker()
     messages = broker.get_recent_intelligence(
         intelligence_type=IntelligenceType.PRICE,
@@ -91,7 +135,15 @@ async def get_current_price(
             detail=f"No price intelligence available for {symbol.upper()}"
         )
 
-    return messages[0]
+    metadata = _get_request_metadata(request, start_time)
+    metadata['symbol'] = symbol.upper()
+    metadata['source'] = messages[0].source
+
+    return success_response(
+        data=messages[0],
+        version=APIVersion.V1,
+        metadata=metadata
+    )
 
 
 @router.get("/price/{symbol}/live")
@@ -147,6 +199,7 @@ async def get_live_price(
 
 @router.post("/price/batch")
 async def get_batch_prices(
+    request: Request,
     symbols: list[str] = Body(..., description="List of cryptocurrency symbols", example=["BTC", "ETH", "SOL"])
 ):
     """
@@ -154,9 +207,32 @@ async def get_batch_prices(
 
     This is more efficient than making individual requests.
 
+    **Response Format (v1.0):**
+    ```json
+    {
+        "version": "1.0",
+        "status": "success",
+        "data": {
+            "total": 3,
+            "prices": {
+                "BTC": {...},
+                "ETH": {...},
+                "SOL": {...}
+            }
+        },
+        "metadata": {
+            "timestamp": "2024-01-15T10:30:00Z",
+            "request_id": "xyz789",
+            "symbols_requested": 3
+        }
+    }
+    ```
+
     Returns:
-        dict: Symbol -> Price data mapping
+        VersionedResponse: Batch price data
     """
+    start_time = time.time()
+
     try:
         connector = get_coingecko_connector()
         prices = await connector.get_prices_batch(symbols)
@@ -167,10 +243,18 @@ async def get_batch_prices(
                 detail="Failed to fetch batch prices from CoinGecko"
             )
 
-        return {
-            "total": len(prices),
-            "prices": prices
-        }
+        metadata = _get_request_metadata(request, start_time)
+        metadata['symbols_requested'] = len(symbols)
+        metadata['symbols_returned'] = len(prices)
+
+        return success_response(
+            data={
+                "total": len(prices),
+                "prices": prices
+            },
+            version=APIVersion.V1,
+            metadata=metadata
+        )
 
     except HTTPException:
         raise
@@ -244,28 +328,87 @@ async def ingest_intelligence(
 
 
 @router.get("/stats")
-async def get_intelligence_stats():
+async def get_intelligence_stats(request: Request):
     """
     Get intelligence broker statistics.
 
+    Returns comprehensive statistics about:
+    - Total messages processed
+    - Messages by type and importance
+    - Routing statistics
+    - Processing performance
+
+    **Response Format (v1.0):**
+    ```json
+    {
+        "version": "1.0",
+        "status": "success",
+        "data": {
+            "total_messages": 1523,
+            "by_type": {...},
+            "by_importance": {...},
+            "routing_stats": {...}
+        },
+        "metadata": {
+            "timestamp": "2024-01-15T10:30:00Z",
+            "request_id": "xyz789"
+        }
+    }
+    ```
+
     Returns:
-        dict: Broker statistics including message counts and routing stats
+        VersionedResponse: Broker statistics
     """
+    start_time = time.time()
+
     broker = get_intelligence_broker()
-    return broker.get_broker_stats()
+    stats = broker.get_broker_stats()
+
+    metadata = _get_request_metadata(request, start_time)
+
+    return success_response(
+        data=stats,
+        version=APIVersion.V1,
+        metadata=metadata
+    )
 
 
 @router.get("/connectors")
 async def list_connectors(
+    request: Request,
     intelligence_type: Optional[IntelligenceType] = Query(None, description="Filter by intelligence type"),
     enabled_only: bool = Query(True, description="Only show enabled connectors")
 ):
     """
     List all registered data connectors.
 
+    Returns information about available data sources:
+    - Connector ID and type
+    - Health status and reliability
+    - Configuration details
+
+    **Response Format (v1.0):**
+    ```json
+    {
+        "version": "1.0",
+        "status": "success",
+        "data": {
+            "total": 2,
+            "connectors": [...]
+        },
+        "metadata": {
+            "timestamp": "2024-01-15T10:30:00Z",
+            "request_id": "xyz789",
+            "filtered_by_type": "price"
+        }
+    }
+    ```
+
     Returns:
-        dict: List of data connectors with their configurations
+        VersionedResponse: List of data connectors
     """
+    start_time = time.time()
+
     registry = get_service_registry()
 
     if intelligence_type:
@@ -275,10 +418,20 @@ async def list_connectors(
     else:
         connectors = registry.get_all_connectors()
 
-    return {
-        "total": len(connectors),
-        "connectors": connectors
-    }
+    metadata = _get_request_metadata(request, start_time)
+    metadata['total_connectors'] = len(connectors)
+    metadata['enabled_only'] = enabled_only
+    if intelligence_type:
+        metadata['filtered_by_type'] = intelligence_type.value
+
+    return success_response(
+        data={
+            "total": len(connectors),
+            "connectors": connectors
+        },
+        version=APIVersion.V1,
+        metadata=metadata
+    )
 
 
 @router.get("/connectors/{connector_id}/health")
