@@ -1,9 +1,11 @@
 """
 CIAL Pydantic Models
 Data models for intelligence messages, agents, and API requests/responses
+
+Version: 2.0 - Migrated to Pydantic V2
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
 from enum import Enum
@@ -66,8 +68,8 @@ class IntelligenceMessage(BaseModel):
     expires_at: Optional[datetime] = Field(None, description="Expiration timestamp")
     validated: bool = Field(default=False, description="Whether data has been cross-validated")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "price_btc_20250116_123456",
                 "type": "price",
@@ -86,6 +88,7 @@ class IntelligenceMessage(BaseModel):
                 "validated": True
             }
         }
+    )
 
 
 class PriceIntelligence(BaseModel):
@@ -125,19 +128,21 @@ class AgentCapabilities(BaseModel):
 
 class AgentRegistration(BaseModel):
     """Agent registration request"""
-    agent_id: str = Field(..., description="Unique agent identifier")
+    agent_id: str = Field(..., description="Unique agent identifier", min_length=3)
     agent_type: AgentType = Field(..., description="Type of agent")
     capabilities: AgentCapabilities = Field(..., description="Agent capabilities")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional agent metadata")
 
-    @validator('agent_id')
-    def validate_agent_id(cls, v):
+    @field_validator('agent_id')
+    @classmethod
+    def validate_agent_id(cls, v: str) -> str:
+        """Validate agent ID format"""
         if not v or len(v) < 3:
             raise ValueError("agent_id must be at least 3 characters")
         return v
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "agent_id": "trading_agent_001",
                 "agent_type": "trading",
@@ -154,6 +159,7 @@ class AgentRegistration(BaseModel):
                 }
             }
         }
+    )
 
 
 class Agent(BaseModel):

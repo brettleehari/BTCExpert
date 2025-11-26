@@ -1,10 +1,12 @@
 """
 CIAL API Response Models
 Versioned response wrappers for backward compatibility
+
+Version: 2.0 - Migrated to Pydantic V2
 """
 
 from typing import Generic, TypeVar, Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from enum import Enum
 
@@ -63,8 +65,8 @@ class VersionedResponse(BaseModel, Generic[T]):
         description="Error details if status is error or partial"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "version": "1.0",
                 "status": "success",
@@ -76,6 +78,7 @@ class VersionedResponse(BaseModel, Generic[T]):
                 }
             }
         }
+    )
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -114,8 +117,8 @@ class PaginatedResponse(BaseModel, Generic[T]):
         description="Response metadata"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "version": "1.0",
                 "status": "success",
@@ -130,6 +133,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
                 }
             }
         }
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -167,8 +171,8 @@ class ErrorResponse(BaseModel):
         description="Response metadata"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "version": "1.0",
                 "status": "error",
@@ -183,6 +187,7 @@ class ErrorResponse(BaseModel):
                 }
             }
         }
+    )
 
 
 # Response builder utilities
