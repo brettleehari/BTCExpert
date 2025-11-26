@@ -5,7 +5,7 @@ Main FastAPI Application Entry Point
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from contextlib import asynccontextmanager
 import time
 from datetime import datetime
@@ -21,6 +21,12 @@ from core.service_registry import initialize_default_connectors
 from infrastructure.redis_manager import get_redis_manager
 from infrastructure.kafka_manager import get_kafka_manager
 from infrastructure.postgres_manager import get_postgres_manager
+from infrastructure.observability import (
+    initialize_observability,
+    get_prometheus_metrics,
+    sync_resilience_metrics
+)
+from prometheus_client import CONTENT_TYPE_LATEST
 
 
 @asynccontextmanager
@@ -32,6 +38,10 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 CIAL is starting up...")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"API Version: {settings.API_VERSION}")
+
+    # Initialize observability FIRST (before other components)
+    initialize_observability(app)
+    logger.info("✅ Observability stack initialized")
 
     # Initialize infrastructure components
     # Initialize default data connectors
@@ -210,14 +220,45 @@ async def root():
         },
         "endpoints": {
             "health": "/health",
+            "metrics": "/metrics",
             "intelligence": "/api/v1/intelligence",
             "agents": "/api/v1/agents",
             "memory": "/api/v1/memory",
             "validation": "/api/v1/validation",
             "system": "/api/v1/system",
             "resilience": "/api/v1/system/resilience"
+        },
+        "monitoring": {
+            "prometheus_metrics": "/metrics",
+            "resilience_stats": "/api/v1/system/resilience",
+            "health_check": "/health"
         }
     }
+
+
+# Prometheus metrics endpoint
+@app.get("/metrics", tags=["Monitoring"], include_in_schema=False)
+async def metrics():
+    """
+    Prometheus metrics endpoint.
+
+    Returns Prometheus-formatted metrics for:
+    - Intelligence pipeline metrics
+    - API request metrics
+    - Circuit breaker states
+    - Bulkhead utilization
+    - Health scores
+    - And all OpenTelemetry auto-instrumentation metrics
+
+    This endpoint is consumed by Prometheus scraper.
+    """
+    # Sync resilience metrics before exporting
+    sync_resilience_metrics()
+
+    return Response(
+        content=get_prometheus_metrics(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 
 # Register API routers

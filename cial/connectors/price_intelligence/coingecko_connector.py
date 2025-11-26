@@ -23,6 +23,10 @@ from infrastructure.resilience import (
     get_health_check,
     get_bulkhead
 )
+from infrastructure.observability import (
+    trace_operation,
+    record_connector_request
+)
 
 
 class CoinGeckoConnector:
@@ -85,12 +89,28 @@ class CoinGeckoConnector:
                 self.health.record_success(response_time_ms=response_time_ms)
                 self.service_registry.report_success(self.CONNECTOR_ID)
 
+                # Record Prometheus metrics
+                record_connector_request(
+                    connector=self.CONNECTOR_ID,
+                    success=True,
+                    duration=response_time_ms / 1000.0  # Convert to seconds
+                )
+
                 return result
 
         except Exception as e:
             # Track failure
+            response_time_ms = (time.time() - start_time) * 1000
             self.health.record_failure(error=str(e))
             self.service_registry.report_error(self.CONNECTOR_ID, str(e))
+
+            # Record Prometheus metrics
+            record_connector_request(
+                connector=self.CONNECTOR_ID,
+                success=False,
+                duration=response_time_ms / 1000.0  # Convert to seconds
+            )
+
             logger.error(
                 f"Failed to fetch price for {symbol}",
                 error=str(e),

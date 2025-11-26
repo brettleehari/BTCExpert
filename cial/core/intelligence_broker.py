@@ -1,11 +1,14 @@
 """
 CIAL Intelligence Broker
 Central intelligence routing and service discovery for crypto agents
+
+Version: 2.0 - With OpenTelemetry Tracing & Prometheus Metrics
 """
 
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import uuid
+import time
 from collections import defaultdict
 
 from api.models.intelligence import (
@@ -18,6 +21,11 @@ from memory.short_term_memory import get_short_term_memory
 from memory.long_term_memory import get_long_term_memory
 from infrastructure.kafka_manager import get_kafka_manager
 from validation.intelligence_validator import get_intelligence_validator
+from infrastructure.observability import (
+    trace_operation,
+    record_intelligence_message,
+    intelligence_routing_total
+)
 import asyncio
 
 
@@ -47,6 +55,7 @@ class IntelligenceBroker:
 
     # Intelligence Processing
 
+    @trace_operation("intelligence.process", {"component": "broker"})
     def process_intelligence(
         self,
         intelligence_type: IntelligenceType,
@@ -70,6 +79,8 @@ class IntelligenceBroker:
         Returns:
             IntelligenceMessage: Processed intelligence message
         """
+        start_time = time.time()
+
         # 1. Create intelligence message
         message = self._create_message(
             intelligence_type=intelligence_type,
@@ -104,7 +115,16 @@ class IntelligenceBroker:
         # 9. Store in history (limited size)
         self._store_message(classified_message)
 
-        # 10. Log intelligence event
+        # 10. Record metrics
+        processing_time = time.time() - start_time
+        record_intelligence_message(
+            intelligence_type=intelligence_type.value,
+            importance=classified_message.importance.value,
+            source=source,
+            processing_time=processing_time
+        )
+
+        # 11. Log intelligence event
         log_intelligence_event(
             event_type=classified_message.type.value,
             source=source,
@@ -117,7 +137,8 @@ class IntelligenceBroker:
             f"Intelligence processed: {classified_message.id}",
             type=classified_message.type.value,
             importance=classified_message.importance.value,
-            routed_to=routed_count
+            routed_to=routed_count,
+            processing_time_ms=round(processing_time * 1000, 2)
         )
 
         return classified_message
