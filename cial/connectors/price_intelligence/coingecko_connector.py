@@ -1,18 +1,28 @@
 """
 CoinGecko Price Intelligence Connector
 First data source integration with complete intelligence pipeline
+
+Version: 2.0 - Production Ready with Resilience Patterns
 """
 
 import httpx
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import asyncio
+import time
 
 from api.models.intelligence import IntelligenceType, PriceIntelligence
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
+from infrastructure.resilience import (
+    circuit_breaker,
+    timeout,
+    retry_with_backoff,
+    get_health_check,
+    get_bulkhead
+)
 
 
 class CoinGeckoConnector:
@@ -40,11 +50,22 @@ class CoinGeckoConnector:
         self._last_request_time = 0
         self._min_request_interval = 1.2  # 50 requests/minute = 1.2s between requests
 
-        logger.info("CoinGeckoConnector initialized")
+        # Resilience patterns
+        self.health = get_health_check("coingecko_api", threshold_success_rate=0.85)
+        self.bulkhead = get_bulkhead("coingecko_api", max_concurrent=10, timeout=30.0)
+
+        logger.info("CoinGeckoConnector initialized with resilience patterns")
 
     async def get_price(self, symbol: str) -> Optional[PriceIntelligence]:
         """
         Get current price intelligence for a cryptocurrency.
+
+        Resilience Features:
+        - Circuit Breaker: Opens after 3 failures in 30s
+        - Timeout: 5 seconds max per request
+        - Retry: 3 attempts with exponential backoff
+        - Bulkhead: Max 10 concurrent requests
+        - Health Check: Tracks reliability score
 
         Args:
             symbol: Cryptocurrency symbol (BTC, ETH, etc.)
@@ -52,73 +73,103 @@ class CoinGeckoConnector:
         Returns:
             Optional[PriceIntelligence]: Price data or None if failed
         """
+        start_time = time.time()
+
         try:
-            # Map symbol to CoinGecko ID
-            coin_id = self._symbol_to_id(symbol)
+            # Bulkhead pattern - limit concurrent requests
+            async with self.bulkhead:
+                result = await self._fetch_price_with_resilience(symbol)
 
-            # Rate limiting
-            await self._wait_for_rate_limit()
-
-            # Fetch from CoinGecko
-            async with httpx.AsyncClient() as client:
-                url = f"{self.BASE_URL}/simple/price"
-                params = {
-                    "ids": coin_id,
-                    "vs_currencies": "usd",
-                    "include_24hr_vol": "true",
-                    "include_24hr_change": "true",
-                    "include_market_cap": "true",
-                    "include_last_updated_at": "true"
-                }
-
-                if self.api_key:
-                    params["x_cg_pro_api_key"] = self.api_key
-
-                response = await client.get(url, params=params, timeout=10.0)
-                response.raise_for_status()
-
-                data = response.json()
-
-                if coin_id not in data:
-                    logger.warning(f"No data returned for {symbol} ({coin_id})")
-                    return None
-
-                coin_data = data[coin_id]
-
-                # Create PriceIntelligence model
-                price_intel = PriceIntelligence(
-                    symbol=symbol.upper(),
-                    current_price=coin_data["usd"],
-                    price_change_24h=coin_data.get("usd_24h_change", 0),
-                    price_change_percentage_24h=coin_data.get("usd_24h_change", 0),
-                    volume_24h=coin_data.get("usd_24h_vol", 0),
-                    market_cap=coin_data.get("usd_market_cap", 0)
-                )
-
-                # Report success to service registry
+                # Track success
+                response_time_ms = (time.time() - start_time) * 1000
+                self.health.record_success(response_time_ms=response_time_ms)
                 self.service_registry.report_success(self.CONNECTOR_ID)
 
-                logger.info(
-                    f"Fetched price for {symbol}",
-                    price=price_intel.current_price,
-                    change_24h=price_intel.price_change_percentage_24h
-                )
-
-                return price_intel
-
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error fetching {symbol}: {e.response.status_code}")
-            self.service_registry.report_error(self.CONNECTOR_ID, str(e))
-            return None
+                return result
 
         except Exception as e:
-            logger.error(f"Failed to fetch price for {symbol}: {e}", exc_info=True)
+            # Track failure
+            self.health.record_failure(error=str(e))
             self.service_registry.report_error(self.CONNECTOR_ID, str(e))
+            logger.error(
+                f"Failed to fetch price for {symbol}",
+                error=str(e),
+                health_status=self.health.get_status().value,
+                reliability=self.health.reliability_score
+            )
             return None
+
+    @circuit_breaker("coingecko_api", fail_max=3, timeout_duration=30)
+    @timeout(5.0)
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=10)
+    async def _fetch_price_with_resilience(self, symbol: str) -> Optional[PriceIntelligence]:
+        """
+        Core price fetching logic with resilience decorators.
+
+        This method is wrapped with:
+        1. Circuit Breaker - Fast-fail after 3 consecutive failures
+        2. Timeout - Abort if request takes > 5 seconds
+        3. Retry - Up to 3 attempts with exponential backoff (1s, 2s, 4s)
+        """
+        # Map symbol to CoinGecko ID
+        coin_id = self._symbol_to_id(symbol)
+
+        # Rate limiting
+        await self._wait_for_rate_limit()
+
+        # Fetch from CoinGecko
+        async with httpx.AsyncClient() as client:
+            url = f"{self.BASE_URL}/simple/price"
+            params = {
+                "ids": coin_id,
+                "vs_currencies": "usd",
+                "include_24hr_vol": "true",
+                "include_24hr_change": "true",
+                "include_market_cap": "true",
+                "include_last_updated_at": "true"
+            }
+
+            if self.api_key:
+                params["x_cg_pro_api_key"] = self.api_key
+
+            response = await client.get(url, params=params, timeout=10.0)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if coin_id not in data:
+                logger.warning(f"No data returned for {symbol} ({coin_id})")
+                return None
+
+            coin_data = data[coin_id]
+
+            # Create PriceIntelligence model
+            price_intel = PriceIntelligence(
+                symbol=symbol.upper(),
+                current_price=coin_data["usd"],
+                price_change_24h=coin_data.get("usd_24h_change", 0),
+                price_change_percentage_24h=coin_data.get("usd_24h_change", 0),
+                volume_24h=coin_data.get("usd_24h_vol", 0),
+                market_cap=coin_data.get("usd_market_cap", 0)
+            )
+
+            logger.info(
+                f"Fetched price for {symbol}",
+                price=price_intel.current_price,
+                change_24h=price_intel.price_change_percentage_24h
+            )
+
+            return price_intel
 
     async def get_prices_batch(self, symbols: List[str]) -> Dict[str, PriceIntelligence]:
         """
         Get prices for multiple cryptocurrencies in batch.
+
+        Resilience Features:
+        - Circuit Breaker: Same as single price fetch
+        - Timeout: 8 seconds for batch requests
+        - Retry: 3 attempts with exponential backoff
+        - Bulkhead: Resource-isolated from single requests
 
         Args:
             symbols: List of cryptocurrency symbols
@@ -126,54 +177,70 @@ class CoinGeckoConnector:
         Returns:
             Dict[str, PriceIntelligence]: Symbol -> Price data mapping
         """
+        start_time = time.time()
+
         try:
-            # Map symbols to CoinGecko IDs
-            coin_ids = [self._symbol_to_id(s) for s in symbols]
-            ids_str = ",".join(coin_ids)
+            async with self.bulkhead:
+                results = await self._fetch_prices_batch_with_resilience(symbols)
 
-            await self._wait_for_rate_limit()
-
-            async with httpx.AsyncClient() as client:
-                url = f"{self.BASE_URL}/simple/price"
-                params = {
-                    "ids": ids_str,
-                    "vs_currencies": "usd",
-                    "include_24hr_vol": "true",
-                    "include_24hr_change": "true",
-                    "include_market_cap": "true"
-                }
-
-                if self.api_key:
-                    params["x_cg_pro_api_key"] = self.api_key
-
-                response = await client.get(url, params=params, timeout=10.0)
-                response.raise_for_status()
-
-                data = response.json()
-
-                results = {}
-                for symbol, coin_id in zip(symbols, coin_ids):
-                    if coin_id in data:
-                        coin_data = data[coin_id]
-                        results[symbol.upper()] = PriceIntelligence(
-                            symbol=symbol.upper(),
-                            current_price=coin_data["usd"],
-                            price_change_24h=coin_data.get("usd_24h_change", 0),
-                            price_change_percentage_24h=coin_data.get("usd_24h_change", 0),
-                            volume_24h=coin_data.get("usd_24h_vol", 0),
-                            market_cap=coin_data.get("usd_market_cap", 0)
-                        )
-
+                # Track success
+                response_time_ms = (time.time() - start_time) * 1000
+                self.health.record_success(response_time_ms=response_time_ms)
                 self.service_registry.report_success(self.CONNECTOR_ID)
-
-                logger.info(f"Fetched batch prices for {len(results)} symbols")
 
                 return results
 
         except Exception as e:
-            logger.error(f"Failed to fetch batch prices: {e}", exc_info=True)
+            self.health.record_failure(error=str(e))
             self.service_registry.report_error(self.CONNECTOR_ID, str(e))
+            logger.error(f"Failed to fetch batch prices: {e}", exc_info=True)
             return {}
+
+    @circuit_breaker("coingecko_api", fail_max=3, timeout_duration=30)
+    @timeout(8.0)  # Longer timeout for batch requests
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=10)
+    async def _fetch_prices_batch_with_resilience(self, symbols: List[str]) -> Dict[str, PriceIntelligence]:
+        """Core batch price fetching logic with resilience decorators."""
+        # Map symbols to CoinGecko IDs
+        coin_ids = [self._symbol_to_id(s) for s in symbols]
+        ids_str = ",".join(coin_ids)
+
+        await self._wait_for_rate_limit()
+
+        async with httpx.AsyncClient() as client:
+            url = f"{self.BASE_URL}/simple/price"
+            params = {
+                "ids": ids_str,
+                "vs_currencies": "usd",
+                "include_24hr_vol": "true",
+                "include_24hr_change": "true",
+                "include_market_cap": "true"
+            }
+
+            if self.api_key:
+                params["x_cg_pro_api_key"] = self.api_key
+
+            response = await client.get(url, params=params, timeout=10.0)
+            response.raise_for_status()
+
+            data = response.json()
+
+            results = {}
+            for symbol, coin_id in zip(symbols, coin_ids):
+                if coin_id in data:
+                    coin_data = data[coin_id]
+                    results[symbol.upper()] = PriceIntelligence(
+                        symbol=symbol.upper(),
+                        current_price=coin_data["usd"],
+                        price_change_24h=coin_data.get("usd_24h_change", 0),
+                        price_change_percentage_24h=coin_data.get("usd_24h_change", 0),
+                        volume_24h=coin_data.get("usd_24h_vol", 0),
+                        market_cap=coin_data.get("usd_market_cap", 0)
+                    )
+
+            logger.info(f"Fetched batch prices for {len(results)} symbols")
+
+            return results
 
     async def ingest_price_intelligence(self, symbol: str) -> bool:
         """

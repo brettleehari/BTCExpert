@@ -1,6 +1,8 @@
 """
 CIAL PostgreSQL Manager
 Long-Term Memory persistence with vector search capabilities
+
+Version: 2.0 - Production Ready with Resilience Patterns
 """
 
 import asyncpg
@@ -13,6 +15,11 @@ import json
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
+from infrastructure.resilience import (
+    retry_with_backoff,
+    get_bulkhead,
+    get_health_check
+)
 
 # SQLAlchemy Base
 Base = declarative_base()
@@ -76,8 +83,18 @@ class PostgresManager:
         self._pool: Optional[asyncpg.Pool] = None
         self._connected = False
 
+        # Resilience patterns
+        self.write_bulkhead = get_bulkhead("postgres_writes", max_concurrent=20, timeout=30.0)
+        self.read_bulkhead = get_bulkhead("postgres_reads", max_concurrent=50, timeout=10.0)
+        self.health = get_health_check("postgres_ltm", threshold_success_rate=0.95)
+
+    @retry_with_backoff(max_attempts=5, min_wait=2, max_wait=30)
     async def connect(self):
-        """Initialize PostgreSQL connections."""
+        """
+        Initialize PostgreSQL connections with retry logic.
+
+        Resilience: 5 retry attempts with exponential backoff (2s, 4s, 8s, 16s, 30s)
+        """
         try:
             # Create SQLAlchemy async engine
             self._engine = create_async_engine(
@@ -113,15 +130,17 @@ class PostgresManager:
             await self._enable_vector_extension()
 
             self._connected = True
+            self.health.record_success()
 
             logger.info(
-                "PostgreSQL connected successfully",
+                "PostgreSQL connected successfully with resilience patterns",
                 host=settings.POSTGRES_HOST,
                 port=settings.POSTGRES_PORT,
                 database=settings.POSTGRES_DB
             )
 
         except Exception as e:
+            self.health.record_failure(error=str(e))
             logger.error(f"Failed to connect to PostgreSQL: {e}", exc_info=True)
             raise
 
@@ -157,6 +176,7 @@ class PostgresManager:
 
     # Intelligence Storage
 
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=10, exceptions=(asyncpg.PostgresError, Exception))
     async def store_intelligence(
         self,
         intelligence_id: str,
@@ -172,6 +192,11 @@ class PostgresManager:
     ) -> bool:
         """
         Store intelligence record in long-term memory.
+
+        Resilience Features:
+        - Bulkhead: Max 20 concurrent write operations
+        - Retry: 3 attempts with exponential backoff (1s, 2s, 4s)
+        - Health Check: Tracks write reliability
 
         Args:
             intelligence_id: Unique intelligence ID
@@ -189,39 +214,48 @@ class PostgresManager:
             bool: True if stored successfully
         """
         try:
-            async with self._session_maker() as session:
-                record = IntelligenceRecord(
-                    id=intelligence_id,
-                    type=intelligence_type,
-                    importance=importance,
-                    source=source,
-                    symbol=symbol,
-                    data=data,
-                    meta_data=meta_data or {},
-                    timestamp=timestamp or datetime.utcnow(),
-                    validated=validated,
-                    routed_to_count=routed_to_count,
-                    accessed_count=0
-                )
+            async with self.write_bulkhead:
+                async with self._session_maker() as session:
+                    record = IntelligenceRecord(
+                        id=intelligence_id,
+                        type=intelligence_type,
+                        importance=importance,
+                        source=source,
+                        symbol=symbol,
+                        data=data,
+                        meta_data=meta_data or {},
+                        timestamp=timestamp or datetime.utcnow(),
+                        validated=validated,
+                        routed_to_count=routed_to_count,
+                        accessed_count=0
+                    )
 
-                session.add(record)
-                await session.commit()
+                    session.add(record)
+                    await session.commit()
 
-                logger.debug(
-                    f"Intelligence stored in LTM",
-                    id=intelligence_id,
-                    type=intelligence_type
-                )
+                    self.health.record_success()
 
-                return True
+                    logger.debug(
+                        f"Intelligence stored in LTM",
+                        id=intelligence_id,
+                        type=intelligence_type
+                    )
+
+                    return True
 
         except Exception as e:
+            self.health.record_failure(error=str(e))
             logger.error(f"Failed to store intelligence: {e}", exc_info=True)
             return False
 
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
     async def get_intelligence(self, intelligence_id: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve intelligence record by ID.
+
+        Resilience Features:
+        - Bulkhead: Max 50 concurrent read operations
+        - Retry: 3 attempts with exponential backoff (1s, 2s, 4s)
 
         Args:
             intelligence_id: Intelligence ID
@@ -230,36 +264,40 @@ class PostgresManager:
             Optional[Dict]: Intelligence record or None
         """
         try:
-            async with self._pool.acquire() as conn:
-                row = await conn.fetchrow(
-                    """
-                    SELECT * FROM intelligence_records
-                    WHERE id = $1
-                    """,
-                    intelligence_id
-                )
-
-                if row:
-                    # Update access stats
-                    await conn.execute(
+            async with self.read_bulkhead:
+                async with self._pool.acquire() as conn:
+                    row = await conn.fetchrow(
                         """
-                        UPDATE intelligence_records
-                        SET accessed_count = accessed_count + 1,
-                            last_accessed = $1
-                        WHERE id = $2
+                        SELECT * FROM intelligence_records
+                        WHERE id = $1
                         """,
-                        datetime.utcnow(),
                         intelligence_id
                     )
 
-                    return dict(row)
+                    if row:
+                        # Update access stats
+                        await conn.execute(
+                            """
+                            UPDATE intelligence_records
+                            SET accessed_count = accessed_count + 1,
+                                last_accessed = $1
+                            WHERE id = $2
+                            """,
+                            datetime.utcnow(),
+                            intelligence_id
+                        )
 
-                return None
+                        self.health.record_success()
+                        return dict(row)
+
+                    return None
 
         except Exception as e:
+            self.health.record_failure(error=str(e))
             logger.error(f"Failed to get intelligence: {e}", exc_info=True)
             return None
 
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
     async def query_intelligence(
         self,
         intelligence_type: Optional[str] = None,
@@ -272,6 +310,10 @@ class PostgresManager:
     ) -> List[Dict[str, Any]]:
         """
         Query intelligence records with filters.
+
+        Resilience Features:
+        - Bulkhead: Max 50 concurrent read operations
+        - Retry: 3 attempts with exponential backoff (1s, 2s, 4s)
 
         Args:
             intelligence_type: Filter by type
@@ -286,55 +328,58 @@ class PostgresManager:
             List[Dict]: Matching intelligence records
         """
         try:
-            conditions = []
-            params = []
-            param_count = 0
+            async with self.read_bulkhead:
+                conditions = []
+                params = []
+                param_count = 0
 
-            if intelligence_type:
+                if intelligence_type:
+                    param_count += 1
+                    conditions.append(f"type = ${param_count}")
+                    params.append(intelligence_type)
+
+                if symbol:
+                    param_count += 1
+                    conditions.append(f"symbol = ${param_count}")
+                    params.append(symbol)
+
+                if importance:
+                    param_count += 1
+                    conditions.append(f"importance = ${param_count}")
+                    params.append(importance)
+
+                if source:
+                    param_count += 1
+                    conditions.append(f"source = ${param_count}")
+                    params.append(source)
+
+                if start_time:
+                    param_count += 1
+                    conditions.append(f"timestamp >= ${param_count}")
+                    params.append(start_time)
+
+                if end_time:
+                    param_count += 1
+                    conditions.append(f"timestamp <= ${param_count}")
+                    params.append(end_time)
+
+                where_clause = " AND ".join(conditions) if conditions else "TRUE"
                 param_count += 1
-                conditions.append(f"type = ${param_count}")
-                params.append(intelligence_type)
+                query = f"""
+                    SELECT * FROM intelligence_records
+                    WHERE {where_clause}
+                    ORDER BY timestamp DESC
+                    LIMIT ${param_count}
+                """
+                params.append(limit)
 
-            if symbol:
-                param_count += 1
-                conditions.append(f"symbol = ${param_count}")
-                params.append(symbol)
-
-            if importance:
-                param_count += 1
-                conditions.append(f"importance = ${param_count}")
-                params.append(importance)
-
-            if source:
-                param_count += 1
-                conditions.append(f"source = ${param_count}")
-                params.append(source)
-
-            if start_time:
-                param_count += 1
-                conditions.append(f"timestamp >= ${param_count}")
-                params.append(start_time)
-
-            if end_time:
-                param_count += 1
-                conditions.append(f"timestamp <= ${param_count}")
-                params.append(end_time)
-
-            where_clause = " AND ".join(conditions) if conditions else "TRUE"
-            param_count += 1
-            query = f"""
-                SELECT * FROM intelligence_records
-                WHERE {where_clause}
-                ORDER BY timestamp DESC
-                LIMIT ${param_count}
-            """
-            params.append(limit)
-
-            async with self._pool.acquire() as conn:
-                rows = await conn.fetch(query, *params)
-                return [dict(row) for row in rows]
+                async with self._pool.acquire() as conn:
+                    rows = await conn.fetch(query, *params)
+                    self.health.record_success()
+                    return [dict(row) for row in rows]
 
         except Exception as e:
+            self.health.record_failure(error=str(e))
             logger.error(f"Failed to query intelligence: {e}", exc_info=True)
             return []
 

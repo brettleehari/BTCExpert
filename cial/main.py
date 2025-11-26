@@ -14,6 +14,7 @@ from api.v1.intelligence import router as intelligence_router
 from api.v1.agents import router as agents_router
 from api.v1.memory import router as memory_router
 from api.v1.validation import router as validation_router
+from api.v1.system import router as system_router
 from infrastructure.logging_config import logger
 from infrastructure.config import settings
 from core.service_registry import initialize_default_connectors
@@ -212,7 +213,9 @@ async def root():
             "intelligence": "/api/v1/intelligence",
             "agents": "/api/v1/agents",
             "memory": "/api/v1/memory",
-            "validation": "/api/v1/validation"
+            "validation": "/api/v1/validation",
+            "system": "/api/v1/system",
+            "resilience": "/api/v1/system/resilience"
         }
     }
 
@@ -222,6 +225,7 @@ app.include_router(intelligence_router, prefix="/api/v1/intelligence", tags=["In
 app.include_router(agents_router, prefix="/api/v1/agents", tags=["Agents"])
 app.include_router(memory_router, prefix="/api/v1/memory", tags=["Memory"])
 app.include_router(validation_router, prefix="/api/v1/validation", tags=["Validation"])
+app.include_router(system_router, prefix="/api/v1", tags=["System & Monitoring"])
 
 
 if __name__ == "__main__":
