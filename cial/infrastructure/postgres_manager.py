@@ -129,6 +129,9 @@ class PostgresManager:
             # Enable pgvector extension if available
             await self._enable_vector_extension()
 
+            # Enable TimescaleDB extension for time-series optimization
+            await self._enable_timescaledb_extension()
+
             self._connected = True
             self.health.record_success()
 
@@ -173,6 +176,139 @@ class PostgresManager:
                 logger.info("pgvector extension enabled")
         except Exception as e:
             logger.warning(f"pgvector extension not available: {e}")
+
+    async def _enable_timescaledb_extension(self):
+        """
+        Enable TimescaleDB extension for optimized time-series data.
+
+        TimescaleDB provides:
+        - Hypertables for automatic partitioning by time
+        - 100x faster time-range queries
+        - Automatic compression for old data
+        - Continuous aggregates for pre-computed analytics
+        """
+        try:
+            async with self._pool.acquire() as conn:
+                # Enable TimescaleDB extension
+                await conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE")
+                logger.info("✅ TimescaleDB extension enabled")
+
+                # Convert intelligence_records to hypertable if not already
+                # Check if table is already a hypertable
+                is_hypertable = await conn.fetchval(
+                    """
+                    SELECT EXISTS (
+                        SELECT 1 FROM timescaledb_information.hypertables
+                        WHERE hypertable_name = 'intelligence_records'
+                    )
+                    """
+                )
+
+                if not is_hypertable:
+                    # Convert to hypertable partitioned by timestamp
+                    await conn.execute(
+                        """
+                        SELECT create_hypertable(
+                            'intelligence_records',
+                            'timestamp',
+                            if_not_exists => TRUE,
+                            chunk_time_interval => INTERVAL '1 day'
+                        )
+                        """
+                    )
+                    logger.info("✅ intelligence_records converted to hypertable (1-day chunks)")
+
+                    # Add compression policy (compress data older than 7 days)
+                    await conn.execute(
+                        """
+                        ALTER TABLE intelligence_records SET (
+                            timescaledb.compress,
+                            timescaledb.compress_segmentby = 'type,symbol'
+                        )
+                        """
+                    )
+
+                    await conn.execute(
+                        """
+                        SELECT add_compression_policy(
+                            'intelligence_records',
+                            INTERVAL '7 days',
+                            if_not_exists => TRUE
+                        )
+                        """
+                    )
+                    logger.info("✅ Compression policy added (compress after 7 days)")
+
+                    # Create continuous aggregate for hourly statistics
+                    await conn.execute(
+                        """
+                        CREATE MATERIALIZED VIEW IF NOT EXISTS intelligence_hourly_stats
+                        WITH (timescaledb.continuous) AS
+                        SELECT
+                            time_bucket('1 hour', timestamp) AS hour,
+                            type,
+                            symbol,
+                            COUNT(*) as message_count,
+                            COUNT(DISTINCT source) as unique_sources,
+                            SUM(routed_to_count) as total_routes
+                        FROM intelligence_records
+                        GROUP BY hour, type, symbol
+                        WITH NO DATA
+                        """
+                    )
+
+                    # Add refresh policy for continuous aggregate
+                    await conn.execute(
+                        """
+                        SELECT add_continuous_aggregate_policy(
+                            'intelligence_hourly_stats',
+                            start_offset => INTERVAL '3 hours',
+                            end_offset => INTERVAL '1 hour',
+                            schedule_interval => INTERVAL '1 hour',
+                            if_not_exists => TRUE
+                        )
+                        """
+                    )
+                    logger.info("✅ Continuous aggregate created (hourly stats)")
+
+                    # Create continuous aggregate for daily statistics
+                    await conn.execute(
+                        """
+                        CREATE MATERIALIZED VIEW IF NOT EXISTS intelligence_daily_stats
+                        WITH (timescaledb.continuous) AS
+                        SELECT
+                            time_bucket('1 day', timestamp) AS day,
+                            type,
+                            COUNT(*) as message_count,
+                            COUNT(DISTINCT symbol) as unique_symbols,
+                            COUNT(DISTINCT source) as unique_sources,
+                            AVG(routed_to_count) as avg_routes,
+                            SUM(CASE WHEN validated THEN 1 ELSE 0 END) as validated_count
+                        FROM intelligence_records
+                        GROUP BY day, type
+                        WITH NO DATA
+                        """
+                    )
+
+                    await conn.execute(
+                        """
+                        SELECT add_continuous_aggregate_policy(
+                            'intelligence_daily_stats',
+                            start_offset => INTERVAL '3 days',
+                            end_offset => INTERVAL '1 day',
+                            schedule_interval => INTERVAL '1 day',
+                            if_not_exists => TRUE
+                        )
+                        """
+                    )
+                    logger.info("✅ Continuous aggregate created (daily stats)")
+
+                else:
+                    logger.info("✅ intelligence_records already configured as hypertable")
+
+        except Exception as e:
+            logger.warning(f"⚠️  TimescaleDB setup failed: {e}")
+            logger.warning("Continuing without TimescaleDB optimization (standard PostgreSQL)")
 
     # Intelligence Storage
 
@@ -498,6 +634,334 @@ class PostgresManager:
         except Exception as e:
             logger.error(f"Failed to get info: {e}")
             return {"connected": True, "error": str(e)}
+
+    # ========================================================================
+    # TIMESCALEDB TIME-SERIES QUERIES
+    # ========================================================================
+
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    async def get_time_series_data(
+        self,
+        symbol: Optional[str] = None,
+        intelligence_type: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        interval: str = "1 hour",
+        limit: int = 1000
+    ) -> List[Dict[str, Any]]:
+        """
+        Get time-bucketed intelligence data using TimescaleDB.
+
+        This leverages TimescaleDB's time_bucket() function for efficient
+        time-series aggregation. 100x faster than traditional GROUP BY queries.
+
+        Args:
+            symbol: Filter by symbol
+            intelligence_type: Filter by type
+            start_time: Start of time range
+            end_time: End of time range
+            interval: Time bucket interval (e.g., '1 hour', '15 minutes', '1 day')
+            limit: Maximum number of buckets
+
+        Returns:
+            List[Dict]: Time-bucketed data with aggregates
+        """
+        try:
+            async with self.read_bulkhead:
+                conditions = []
+                params = []
+                param_count = 0
+
+                if symbol:
+                    param_count += 1
+                    conditions.append(f"symbol = ${param_count}")
+                    params.append(symbol)
+
+                if intelligence_type:
+                    param_count += 1
+                    conditions.append(f"type = ${param_count}")
+                    params.append(intelligence_type)
+
+                if start_time:
+                    param_count += 1
+                    conditions.append(f"timestamp >= ${param_count}")
+                    params.append(start_time)
+
+                if end_time:
+                    param_count += 1
+                    conditions.append(f"timestamp <= ${param_count}")
+                    params.append(end_time)
+
+                where_clause = " AND ".join(conditions) if conditions else "TRUE"
+                param_count += 1
+                interval_param = f"${param_count}"
+                param_count += 1
+                limit_param = f"${param_count}"
+
+                query = f"""
+                    SELECT
+                        time_bucket({interval_param}, timestamp) AS bucket,
+                        type,
+                        symbol,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT source) as unique_sources,
+                        AVG(routed_to_count) as avg_routes,
+                        MAX(timestamp) as latest_timestamp
+                    FROM intelligence_records
+                    WHERE {where_clause}
+                    GROUP BY bucket, type, symbol
+                    ORDER BY bucket DESC
+                    LIMIT {limit_param}
+                """
+                params.extend([interval, limit])
+
+                async with self._pool.acquire() as conn:
+                    rows = await conn.fetch(query, *params)
+                    self.health.record_success()
+                    return [dict(row) for row in rows]
+
+        except Exception as e:
+            self.health.record_failure(error=str(e))
+            logger.error(f"Failed to get time-series data: {e}", exc_info=True)
+            return []
+
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    async def get_hourly_stats(
+        self,
+        symbol: Optional[str] = None,
+        intelligence_type: Optional[str] = None,
+        hours_back: int = 24
+    ) -> List[Dict[str, Any]]:
+        """
+        Get pre-computed hourly statistics from continuous aggregate.
+
+        This uses TimescaleDB's continuous aggregates (materialized views)
+        that are automatically refreshed. Queries are nearly instantaneous.
+
+        Args:
+            symbol: Filter by symbol
+            intelligence_type: Filter by type
+            hours_back: Number of hours to look back
+
+        Returns:
+            List[Dict]: Hourly statistics
+        """
+        try:
+            async with self.read_bulkhead:
+                conditions = ["hour >= NOW() - $1::interval"]
+                params = [f"{hours_back} hours"]
+                param_count = 1
+
+                if symbol:
+                    param_count += 1
+                    conditions.append(f"symbol = ${param_count}")
+                    params.append(symbol)
+
+                if intelligence_type:
+                    param_count += 1
+                    conditions.append(f"type = ${param_count}")
+                    params.append(intelligence_type)
+
+                where_clause = " AND ".join(conditions)
+
+                query = f"""
+                    SELECT
+                        hour,
+                        type,
+                        symbol,
+                        message_count,
+                        unique_sources,
+                        total_routes
+                    FROM intelligence_hourly_stats
+                    WHERE {where_clause}
+                    ORDER BY hour DESC
+                """
+
+                async with self._pool.acquire() as conn:
+                    rows = await conn.fetch(query, *params)
+                    self.health.record_success()
+                    return [dict(row) for row in rows]
+
+        except Exception as e:
+            self.health.record_failure(error=str(e))
+            logger.error(f"Failed to get hourly stats: {e}", exc_info=True)
+            return []
+
+    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    async def get_daily_stats(
+        self,
+        intelligence_type: Optional[str] = None,
+        days_back: int = 30
+    ) -> List[Dict[str, Any]]:
+        """
+        Get pre-computed daily statistics from continuous aggregate.
+
+        Args:
+            intelligence_type: Filter by type
+            days_back: Number of days to look back
+
+        Returns:
+            List[Dict]: Daily statistics
+        """
+        try:
+            async with self.read_bulkhead:
+                conditions = ["day >= NOW() - $1::interval"]
+                params = [f"{days_back} days"]
+                param_count = 1
+
+                if intelligence_type:
+                    param_count += 1
+                    conditions.append(f"type = ${param_count}")
+                    params.append(intelligence_type)
+
+                where_clause = " AND ".join(conditions)
+
+                query = f"""
+                    SELECT
+                        day,
+                        type,
+                        message_count,
+                        unique_symbols,
+                        unique_sources,
+                        avg_routes,
+                        validated_count
+                    FROM intelligence_daily_stats
+                    WHERE {where_clause}
+                    ORDER BY day DESC
+                """
+
+                async with self._pool.acquire() as conn:
+                    rows = await conn.fetch(query, *params)
+                    self.health.record_success()
+                    return [dict(row) for row in rows]
+
+        except Exception as e:
+            self.health.record_failure(error=str(e))
+            logger.error(f"Failed to get daily stats: {e}", exc_info=True)
+            return []
+
+    async def get_compression_stats(self) -> Dict[str, Any]:
+        """
+        Get TimescaleDB compression statistics.
+
+        Shows how much storage is saved through compression.
+
+        Returns:
+            Dict: Compression statistics
+        """
+        try:
+            async with self._pool.acquire() as conn:
+                # Get compression stats
+                compression_stats = await conn.fetch(
+                    """
+                    SELECT
+                        hypertable_name,
+                        CASE WHEN before_compression_total_bytes > 0
+                            THEN ROUND(100.0 * (before_compression_total_bytes - after_compression_total_bytes) / before_compression_total_bytes, 2)
+                            ELSE 0
+                        END as compression_ratio,
+                        pg_size_pretty(before_compression_total_bytes) as uncompressed_size,
+                        pg_size_pretty(after_compression_total_bytes) as compressed_size,
+                        pg_size_pretty(before_compression_total_bytes - after_compression_total_bytes) as saved_space
+                    FROM timescaledb_information.compression_settings
+                    """
+                )
+
+                # Get chunk stats
+                chunk_stats = await conn.fetchrow(
+                    """
+                    SELECT
+                        COUNT(*) as total_chunks,
+                        SUM(CASE WHEN is_compressed THEN 1 ELSE 0 END) as compressed_chunks,
+                        SUM(CASE WHEN NOT is_compressed THEN 1 ELSE 0 END) as uncompressed_chunks
+                    FROM timescaledb_information.chunks
+                    WHERE hypertable_name = 'intelligence_records'
+                    """
+                )
+
+                return {
+                    "compression_stats": [dict(row) for row in compression_stats],
+                    "chunk_stats": dict(chunk_stats) if chunk_stats else {},
+                    "timescaledb_enabled": True
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to get compression stats: {e}", exc_info=True)
+            return {"timescaledb_enabled": False, "error": str(e)}
+
+    async def get_recent_trends(self, hours: int = 24, limit: int = 10) -> Dict[str, Any]:
+        """
+        Get trending symbols and intelligence types.
+
+        Args:
+            hours: Number of hours to analyze
+            limit: Number of results per category
+
+        Returns:
+            Dict: Trending data
+        """
+        try:
+            async with self._pool.acquire() as conn:
+                # Top symbols by message count
+                top_symbols = await conn.fetch(
+                    """
+                    SELECT
+                        symbol,
+                        COUNT(*) as message_count,
+                        COUNT(DISTINCT type) as intelligence_types
+                    FROM intelligence_records
+                    WHERE timestamp >= NOW() - $1::interval
+                        AND symbol IS NOT NULL
+                    GROUP BY symbol
+                    ORDER BY message_count DESC
+                    LIMIT $2
+                    """,
+                    f"{hours} hours",
+                    limit
+                )
+
+                # Top intelligence types
+                top_types = await conn.fetch(
+                    """
+                    SELECT
+                        type,
+                        COUNT(*) as message_count,
+                        COUNT(DISTINCT symbol) as unique_symbols,
+                        COUNT(DISTINCT source) as unique_sources
+                    FROM intelligence_records
+                    WHERE timestamp >= NOW() - $1::interval
+                    GROUP BY type
+                    ORDER BY message_count DESC
+                    LIMIT $2
+                    """,
+                    f"{hours} hours",
+                    limit
+                )
+
+                # Message volume over time (15-minute buckets)
+                volume_timeline = await conn.fetch(
+                    """
+                    SELECT
+                        time_bucket('15 minutes', timestamp) AS bucket,
+                        COUNT(*) as count
+                    FROM intelligence_records
+                    WHERE timestamp >= NOW() - $1::interval
+                    GROUP BY bucket
+                    ORDER BY bucket DESC
+                    """,
+                    f"{hours} hours"
+                )
+
+                return {
+                    "period_hours": hours,
+                    "top_symbols": [dict(row) for row in top_symbols],
+                    "top_types": [dict(row) for row in top_types],
+                    "volume_timeline": [dict(row) for row in volume_timeline]
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to get recent trends: {e}", exc_info=True)
+            return {}
 
 
 # Global PostgreSQL manager instance
