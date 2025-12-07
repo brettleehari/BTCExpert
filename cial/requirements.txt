@@ -89,3 +89,6 @@ mkdocs-material==9.5.0
 # Utilities
 python-dateutil==2.9.0
 pytz==2024.1
+
+# Dependency Injection
+dependency-injector==4.41.0

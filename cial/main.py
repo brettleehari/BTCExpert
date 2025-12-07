@@ -18,9 +18,7 @@ from api.v1.system import router as system_router
 from infrastructure.logging_config import logger
 from infrastructure.config import settings
 from core.service_registry import initialize_default_connectors
-from infrastructure.redis_manager import get_redis_manager
-from infrastructure.kafka_manager import get_kafka_manager
-from infrastructure.postgres_manager import get_postgres_manager
+from infrastructure.container import initialize_container, shutdown_container, get_container
 from infrastructure.observability import (
     initialize_observability,
     get_prometheus_metrics,
@@ -33,6 +31,7 @@ from prometheus_client import CONTENT_TYPE_LATEST
 async def lifespan(app: FastAPI):
     """
     Application lifespan manager for startup and shutdown events.
+    Uses DI container for centralized dependency management.
     """
     # Startup
     logger.info("🚀 CIAL is starting up...")
@@ -43,63 +42,25 @@ async def lifespan(app: FastAPI):
     initialize_observability(app)
     logger.info("✅ Observability stack initialized")
 
-    # Initialize infrastructure components
+    # Initialize DI container (manages all dependencies)
+    await initialize_container()
+    logger.info("✅ DI Container initialized")
+
     # Initialize default data connectors
     initialize_default_connectors()
-    logger.info("Default connectors initialized")
+    logger.info("✅ Default connectors initialized")
 
-    # Initialize Redis connection (STM)
-    try:
-        redis_manager = get_redis_manager()
-        redis_manager.connect()
-        logger.info("✅ Redis (STM) connected successfully")
-    except Exception as e:
-        logger.warning(f"⚠️  Redis connection failed: {e}. STM will not be available.")
-
-    # Initialize Kafka connection (Event Stream)
-    try:
-        kafka_manager = get_kafka_manager()
-        kafka_manager.connect()
-        logger.info("✅ Kafka (Event Stream) connected successfully")
-    except Exception as e:
-        logger.warning(f"⚠️  Kafka connection failed: {e}. Event streaming will not be available.")
-
-    # Initialize PostgreSQL connection (LTM)
-    try:
-        postgres_manager = get_postgres_manager()
-        await postgres_manager.connect()
-        logger.info("✅ PostgreSQL (LTM) connected successfully")
-    except Exception as e:
-        logger.warning(f"⚠️  PostgreSQL connection failed: {e}. LTM will not be available.")
+    logger.info("🎉 CIAL startup complete - Ready to serve requests!")
 
     yield
 
     # Shutdown
     logger.info("🛑 CIAL is shutting down...")
 
-    # Close Redis connection
-    try:
-        redis_manager = get_redis_manager()
-        redis_manager.disconnect()
-        logger.info("Redis disconnected")
-    except:
-        pass
+    # Shutdown DI container (releases all resources)
+    await shutdown_container()
 
-    # Close Kafka connection
-    try:
-        kafka_manager = get_kafka_manager()
-        kafka_manager.disconnect()
-        logger.info("Kafka disconnected")
-    except:
-        pass
-
-    # Close PostgreSQL connection
-    try:
-        postgres_manager = get_postgres_manager()
-        await postgres_manager.disconnect()
-        logger.info("PostgreSQL disconnected")
-    except:
-        pass
+    logger.info("👋 CIAL shutdown complete")
 
 
 # Create FastAPI application
@@ -155,13 +116,17 @@ async def health_check():
     """
     Health check endpoint to verify service status.
 
+    Uses DI container to check component health.
+
     Returns:
         dict: Service health status and component checks
     """
+    container = get_container()
+
     # Check Redis connection
     redis_status = "disconnected"
     try:
-        redis_manager = get_redis_manager()
+        redis_manager = container.redis_manager()
         if redis_manager.is_connected():
             redis_status = "connected"
     except:
@@ -170,7 +135,7 @@ async def health_check():
     # Check Kafka connection
     kafka_status = "disconnected"
     try:
-        kafka_manager = get_kafka_manager()
+        kafka_manager = container.kafka_manager()
         if kafka_manager.is_connected():
             kafka_status = "connected"
     except:
@@ -179,7 +144,7 @@ async def health_check():
     # Check PostgreSQL connection
     postgres_status = "disconnected"
     try:
-        postgres_manager = get_postgres_manager()
+        postgres_manager = container.postgres_manager()
         if postgres_manager.is_connected():
             postgres_status = "connected"
     except:
@@ -191,6 +156,7 @@ async def health_check():
         "version": settings.API_VERSION,
         "environment": settings.ENVIRONMENT,
         "timestamp": datetime.utcnow().isoformat(),
+        "dependency_injection": "enabled",
         "components": {
             "api": "operational",
             "redis": redis_status,
