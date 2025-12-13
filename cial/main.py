@@ -16,6 +16,10 @@ from api.v1.memory import router as memory_router
 from api.v1.validation import router as validation_router
 from api.v1.system import router as system_router
 from api.v1.timeseries import router as timeseries_router
+from api.v1.cache import router as cache_router
+from api.v1.websocket import router as websocket_router
+from api.v1.database import router as database_router
+from api.v1.auth import router as auth_router
 from infrastructure.logging_config import logger
 from infrastructure.config import settings
 from core.service_registry import initialize_default_connectors
@@ -25,6 +29,8 @@ from infrastructure.observability import (
     get_prometheus_metrics,
     sync_resilience_metrics
 )
+from infrastructure.rate_limiter import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from prometheus_client import CONTENT_TYPE_LATEST
 
 
@@ -51,12 +57,23 @@ async def lifespan(app: FastAPI):
     initialize_default_connectors()
     logger.info("✅ Default connectors initialized")
 
+    # Initialize WebSocket manager
+    from infrastructure.websocket_manager import get_websocket_manager
+    await get_websocket_manager()
+    logger.info("✅ WebSocket manager initialized")
+
     logger.info("🎉 CIAL startup complete - Ready to serve requests!")
 
     yield
 
     # Shutdown
     logger.info("🛑 CIAL is shutting down...")
+
+    # Shutdown WebSocket manager
+    from infrastructure.websocket_manager import _websocket_manager
+    if _websocket_manager:
+        await _websocket_manager.stop_pubsub_listener()
+        logger.info("✅ WebSocket manager stopped")
 
     # Shutdown DI container (releases all resources)
     await shutdown_container()
@@ -74,6 +91,10 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
     lifespan=lifespan,
 )
+
+# Add rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # CORS Middleware
 app.add_middleware(
@@ -194,7 +215,9 @@ async def root():
             "validation": "/api/v1/validation",
             "system": "/api/v1/system",
             "resilience": "/api/v1/system/resilience",
-            "timeseries": "/api/v1/timeseries"
+            "timeseries": "/api/v1/timeseries",
+            "cache": "/api/v1/cache",
+            "websocket": "/api/v1/websocket/stream"
         },
         "monitoring": {
             "prometheus_metrics": "/metrics",
@@ -236,6 +259,10 @@ app.include_router(memory_router, prefix="/api/v1/memory", tags=["Memory"])
 app.include_router(validation_router, prefix="/api/v1/validation", tags=["Validation"])
 app.include_router(system_router, prefix="/api/v1", tags=["System & Monitoring"])
 app.include_router(timeseries_router, prefix="/api/v1", tags=["TimescaleDB Analytics"])
+app.include_router(cache_router, prefix="/api/v1/cache", tags=["Cache Management"])
+app.include_router(websocket_router, prefix="/api/v1/websocket", tags=["WebSocket Streaming"])
+app.include_router(database_router, prefix="/api/v1/database", tags=["Database Optimization"])
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication & Security"])
 
 
 if __name__ == "__main__":
