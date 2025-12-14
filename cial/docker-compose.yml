@@ -1,14 +1,80 @@
 version: '3.8'
 
 services:
-  # PostgreSQL - Long-Term Memory
+  # ============================================================================
+  # CIAL Application (Main Service)
+  # ============================================================================
+  cial:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cial-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      # Application
+      ENVIRONMENT: production
+      DEBUG: "false"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: cial_ltm
+      POSTGRES_USER: cial_user
+      POSTGRES_PASSWORD: cial_password
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+      # TimescaleDB
+      TIMESCALEDB_HOST: timescaledb
+      TIMESCALEDB_PORT: "5432"
+
+      # Security (CHANGE IN PRODUCTION!)
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-min32chars!!}
+
+      # API Keys (Set via environment or secrets manager)
+      COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - cial-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================================================
+  # PostgreSQL - Long-Term Memory (with pgvector extension)
+  # ============================================================================
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16-v0.7.4  # Pinned version
     container_name: cial-postgres
     environment:
       POSTGRES_DB: cial_ltm
       POSTGRES_USER: cial_user
       POSTGRES_PASSWORD: cial_password
+      # Performance tuning
+      POSTGRES_MAX_CONNECTIONS: "200"
+      POSTGRES_SHARED_BUFFERS: "256MB"
+      POSTGRES_EFFECTIVE_CACHE_SIZE: "1GB"
     ports:
       - "5432:5432"
     volumes:
@@ -21,12 +87,22 @@ services:
       retries: 5
     networks:
       - cial-network
+    restart: unless-stopped
 
-  # Redis - Short-Term Memory
+  # ============================================================================
+  # Redis - Short-Term Memory & Caching
+  # ============================================================================
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.4-alpine  # Pinned version
     container_name: cial-redis
-    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --save 300 100
+      --save 900 10
     ports:
       - "6379:6379"
     volumes:
@@ -38,14 +114,18 @@ services:
       retries: 5
     networks:
       - cial-network
+    restart: unless-stopped
 
+  # ============================================================================
   # Zookeeper - Kafka Dependency
+  # ============================================================================
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
+    image: confluentinc/cp-zookeeper:7.6.0  # Pinned version
     container_name: cial-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
     ports:
       - "2181:2181"
     volumes:
@@ -53,10 +133,13 @@ services:
       - zookeeper_logs:/var/lib/zookeeper/log
     networks:
       - cial-network
+    restart: unless-stopped
 
+  # ============================================================================
   # Kafka - Event Stream
+  # ============================================================================
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
+    image: confluentinc/cp-kafka:7.6.0  # Pinned version
     container_name: cial-kafka
     depends_on:
       - zookeeper
@@ -71,8 +154,13 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_HOURS: 168  # 7 days
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824  # 1GB
+      # Performance tuning
+      KAFKA_NUM_NETWORK_THREADS: 3
+      KAFKA_NUM_IO_THREADS: 8
+      KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
+      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
@@ -80,47 +168,131 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+      start_period: 30s
     networks:
       - cial-network
+    restart: unless-stopped
 
-  # Kafka UI (Optional - for monitoring)
+  # ============================================================================
+  # Kafka UI - Monitoring (Optional)
+  # ============================================================================
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v0.7.2  # Pinned version
     container_name: cial-kafka-ui
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
+      DYNAMIC_CONFIG_ENABLED: 'true'
       KAFKA_CLUSTERS_0_NAME: cial-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     networks:
       - cial-network
+    restart: unless-stopped
+    profiles: ["monitoring"]  # Only start with: docker-compose --profile monitoring up
 
-  # TimescaleDB (Optional - for time-series data)
+  # ============================================================================
+  # TimescaleDB - Time-Series Data (Optional)
+  # ============================================================================
   timescaledb:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.14.2-pg16  # Pinned version
     container_name: cial-timescaledb
     environment:
       POSTGRES_DB: cial_timeseries
       POSTGRES_USER: cial_user
       POSTGRES_PASSWORD: cial_password
+      # Performance tuning
+      TS_TUNE_MAX_CONNS: "200"
+      TS_TUNE_MEMORY: "4GB"
     ports:
       - "5433:5432"
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cial_user -d cial_timeseries"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - cial-network
+    restart: unless-stopped
+    profiles: ["timescale"]  # Only start with: docker-compose --profile timescale up
 
+  # ============================================================================
+  # Prometheus - Metrics Collection (Optional)
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:v2.51.0  # Pinned version
+    container_name: cial-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - cial-network
+    restart: unless-stopped
+    profiles: ["monitoring"]
+
+  # ============================================================================
+  # Grafana - Metrics Visualization (Optional)
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:10.4.1  # Pinned version
+    container_name: cial-grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - cial-network
+    restart: unless-stopped
+    profiles: ["monitoring"]
+
+# ============================================================================
+# Volumes
+# ============================================================================
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
   kafka_data:
+    driver: local
   zookeeper_data:
+    driver: local
   zookeeper_logs:
+    driver: local
   timescaledb_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
 
+# ============================================================================
+# Networks
+# ============================================================================
 networks:
   cial-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

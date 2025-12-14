@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - Long-Term Memory
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cial-postgres
+    environment:
+      POSTGRES_DB: cial_ltm
+      POSTGRES_USER: cial_user
+      POSTGRES_PASSWORD: cial_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cial_user -d cial_ltm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cial-network
+
+  # Redis - Short-Term Memory
+  redis:
+    image: redis:7-alpine
+    container_name: cial-redis
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cial-network
+
+  # Zookeeper - Kafka Dependency
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: cial-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - cial-network
+
+  # Kafka - Event Stream
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: cial-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - cial-network
+
+  # Kafka UI (Optional - for monitoring)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: cial-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: cial-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - cial-network
+
+  # TimescaleDB (Optional - for time-series data)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: cial-timescaledb
+    environment:
+      POSTGRES_DB: cial_timeseries
+      POSTGRES_USER: cial_user
+      POSTGRES_PASSWORD: cial_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    networks:
+      - cial-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+  zookeeper_data:
+  zookeeper_logs:
+  timescaledb_data:
+
+networks:
+  cial-network:
+    driver: bridge
