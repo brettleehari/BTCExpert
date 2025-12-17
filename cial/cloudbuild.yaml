@@ -1,0 +1,208 @@
+# Google Cloud Build Configuration
+# Enables automatic deployment from GitHub to Cloud Run
+# Documentation: https://cloud.google.com/build/docs
+
+steps:
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/cial:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/cial:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/cial:$BRANCH_NAME'
+      - '--build-arg'
+      - 'PYTHON_VERSION=3.11.6'
+      - '--cache-from'
+      - 'gcr.io/$PROJECT_ID/cial:latest'
+      - '.'
+    dir: 'cial'
+
+  # Step 2: Push image with commit SHA tag
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-commit-sha'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/cial:$COMMIT_SHA'
+    waitFor: ['build-image']
+
+  # Step 3: Push image with latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-latest'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/cial:latest'
+    waitFor: ['build-image']
+
+  # Step 4: Push image with branch tag
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-branch'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/cial:$BRANCH_NAME'
+    waitFor: ['build-image']
+
+  # Step 5: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-cloud-run'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cial'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/cial:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'  # Change to your preferred region
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'  # Remove for private API
+
+      # Resource allocation
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--timeout'
+      - '300'
+      - '--concurrency'
+      - '80'
+
+      # Auto-scaling
+      - '--min-instances'
+      - '1'  # Prevents cold starts
+      - '--max-instances'
+      - '10'
+
+      # Scaling behavior
+      - '--cpu-throttling'  # CPU always allocated (no throttling)
+      - '--no-cpu-boost'
+
+      # Environment variables (non-sensitive)
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production,DEBUG=false,API_VERSION=1.0'
+
+      # Secrets from Secret Manager
+      - '--set-secrets'
+      - 'SECRET_KEY=SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,KAFKA_BOOTSTRAP_SERVERS=KAFKA_BOOTSTRAP_SERVERS:latest'
+
+      # Cloud SQL connection (if using Cloud SQL)
+      # - '--add-cloudsql-instances'
+      # - 'PROJECT_ID:REGION:INSTANCE_NAME'
+
+      # VPC connector (for private services)
+      # - '--vpc-connector'
+      # - 'cial-vpc-connector'
+
+      # Labels
+      - '--labels'
+      - 'app=cial,environment=production,managed-by=cloud-build'
+    waitFor: ['push-commit-sha']
+
+  # Step 6: Update traffic to new revision
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'update-traffic'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'services'
+      - 'update-traffic'
+      - 'cial'
+      - '--region'
+      - 'us-central1'
+      - '--to-latest'  # 100% traffic to new revision
+    waitFor: ['deploy-cloud-run']
+
+# Build options
+options:
+  machineType: 'N1_HIGHCPU_8'  # 8 vCPUs for faster builds
+  substitutionOption: 'ALLOW_LOOSE'
+  logging: CLOUD_LOGGING_ONLY
+
+  # Build timeout (20 minutes)
+  timeout: '1200s'
+
+  # Docker build options
+  env:
+    - 'DOCKER_BUILDKIT=1'
+
+# Substitutions (variables)
+substitutions:
+  _SERVICE_NAME: cial
+  _REGION: us-central1
+  _MIN_INSTANCES: '1'
+  _MAX_INSTANCES: '10'
+
+# Images to store in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/cial:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/cial:latest'
+  - 'gcr.io/$PROJECT_ID/cial:$BRANCH_NAME'
+
+# Artifacts (optional - store build logs)
+# artifacts:
+#   objects:
+#     location: 'gs://$PROJECT_ID-build-artifacts'
+#     paths:
+#       - 'build-logs/*'
+
+# ============================================================================
+# Setup Instructions
+# ============================================================================
+#
+# 1. Enable required APIs:
+#    gcloud services enable cloudbuild.googleapis.com
+#    gcloud services enable run.googleapis.com
+#    gcloud services enable secretmanager.googleapis.com
+#
+# 2. Create secrets in Secret Manager:
+#    echo -n "your-secret-key-min-32-chars" | gcloud secrets create SECRET_KEY --data-file=-
+#    echo -n "postgresql://user:pass@host:5432/db" | gcloud secrets create DATABASE_URL --data-file=-
+#    echo -n "redis://host:6379" | gcloud secrets create REDIS_URL --data-file=-
+#    echo -n "kafka-broker:9092" | gcloud secrets create KAFKA_BOOTSTRAP_SERVERS --data-file=-
+#
+# 3. Grant Cloud Run access to secrets:
+#    PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+#    gcloud secrets add-iam-policy-binding SECRET_KEY \
+#      --member=serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com \
+#      --role=roles/secretmanager.secretAccessor
+#    # Repeat for DATABASE_URL, REDIS_URL, KAFKA_BOOTSTRAP_SERVERS
+#
+# 4. Create GitHub trigger (via Cloud Console or CLI):
+#    Go to: https://console.cloud.google.com/cloud-build/triggers
+#    - Connect GitHub repository
+#    - Create trigger:
+#        Name: deploy-cial-production
+#        Event: Push to branch
+#        Branch: ^main$
+#        Configuration: Cloud Build configuration file
+#        Location: cial/cloudbuild.yaml
+#
+# 5. (Optional) Set up Cloud SQL for PostgreSQL:
+#    gcloud sql instances create cial-postgres \
+#      --database-version=POSTGRES_16 \
+#      --tier=db-f1-micro \
+#      --region=us-central1
+#
+# 6. (Optional) Set up Memorystore for Redis:
+#    gcloud redis instances create cial-redis \
+#      --size=1 \
+#      --region=us-central1 \
+#      --tier=basic
+#
+# 7. Deploy manually (first time):
+#    gcloud builds submit --config cloudbuild.yaml
+#
+# ============================================================================
+# Multi-Environment Deployment
+# ============================================================================
+#
+# For staging environment (develop branch), create separate trigger:
+# - Branch: ^develop$
+# - Service name: cial-staging
+# - Different secrets: SECRET_KEY_STAGING, DATABASE_URL_STAGING, etc.
+#
+# ============================================================================

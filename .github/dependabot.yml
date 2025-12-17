@@ -1,0 +1,59 @@
+# Dependabot Configuration for CIAL
+# Automatically checks for dependency updates and security vulnerabilities
+
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/cial"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    reviewers:
+      - "cial-team"
+    assignees:
+      - "cial-team"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Only update patch and minor versions automatically
+    # Major versions require manual review
+    versioning-strategy: increase-if-necessary
+    
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/cial"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    reviewers:
+      - "cial-team"
+    assignees:
+      - "cial-team"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    
+  # GitHub Actions (if used)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"

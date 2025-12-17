@@ -1,0 +1,209 @@
+# DigitalOcean App Platform Configuration
+# Enables deployment from GitHub with managed services
+# Documentation: https://docs.digitalocean.com/products/app-platform/
+
+name: cial
+region: nyc  # Options: nyc (NYC), sfo (SF), ams (Amsterdam), sgp (Singapore), blr (Bangalore)
+
+# Services
+services:
+  # CIAL API Application
+  - name: api
+    github:
+      repo: brettleehari/BTCExpert
+      branch: main
+      deploy_on_push: true
+    source_dir: /cial
+    dockerfile_path: Dockerfile
+
+    # Resource allocation
+    instance_size_slug: professional-xs  # $12/month - 1 vCPU, 2GB RAM
+    instance_count: 2  # 2 instances for high availability
+
+    # HTTP configuration
+    http_port: 8000
+    routes:
+      - path: /
+
+    # Health check
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 60
+      period_seconds: 30
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
+
+    # Environment variables
+    envs:
+      # Application settings
+      - key: ENVIRONMENT
+        value: production
+        scope: RUN_TIME
+
+      - key: DEBUG
+        value: "false"
+        scope: RUN_TIME
+
+      - key: API_VERSION
+        value: "1.0"
+        scope: RUN_TIME
+
+      # Security (set via dashboard for secrets)
+      - key: SECRET_KEY
+        value: CHANGE_ME_MIN_32_CHARS_RANDOM_STRING_HERE
+        type: SECRET
+        scope: RUN_TIME
+
+      # Database connection
+      - key: DATABASE_URL
+        value: ${cial-postgres.DATABASE_URL}
+        scope: RUN_TIME
+
+      - key: POSTGRES_HOST
+        value: ${cial-postgres.HOSTNAME}
+        scope: RUN_TIME
+
+      - key: POSTGRES_PORT
+        value: ${cial-postgres.PORT}
+        scope: RUN_TIME
+
+      - key: POSTGRES_DB
+        value: ${cial-postgres.DATABASE}
+        scope: RUN_TIME
+
+      - key: POSTGRES_USER
+        value: ${cial-postgres.USERNAME}
+        scope: RUN_TIME
+
+      - key: POSTGRES_PASSWORD
+        value: ${cial-postgres.PASSWORD}
+        type: SECRET
+        scope: RUN_TIME
+
+      # Redis connection
+      - key: REDIS_URL
+        value: ${cial-redis.REDIS_URL}
+        scope: RUN_TIME
+
+      - key: REDIS_HOST
+        value: ${cial-redis.HOSTNAME}
+        scope: RUN_TIME
+
+      - key: REDIS_PORT
+        value: ${cial-redis.PORT}
+        scope: RUN_TIME
+
+      - key: REDIS_PASSWORD
+        value: ${cial-redis.PASSWORD}
+        type: SECRET
+        scope: RUN_TIME
+
+      # Kafka connection (requires external service)
+      # - key: KAFKA_BOOTSTRAP_SERVERS
+      #   value: your-kafka-broker:9092
+      #   scope: RUN_TIME
+
+      # API keys (set via dashboard)
+      # - key: COINGECKO_API_KEY
+      #   value: your-api-key-here
+      #   type: SECRET
+      #   scope: RUN_TIME
+
+      # Observability
+      # - key: SENTRY_DSN
+      #   value: your-sentry-dsn
+      #   type: SECRET
+      #   scope: RUN_TIME
+
+      # Rate limiting
+      - key: RATE_LIMIT_REQUESTS
+        value: "100"
+        scope: RUN_TIME
+
+      - key: RATE_LIMIT_PERIOD
+        value: "60"
+        scope: RUN_TIME
+
+# Databases
+databases:
+  # PostgreSQL 16 (with pgvector support)
+  - name: cial-postgres
+    engine: PG
+    version: "16"
+    size: db-s-1vcpu-1gb  # $15/month - Upgrade to db-s-2vcpu-4gb for production
+    num_nodes: 1  # Increase to 2 for high availability
+    production: true
+
+  # Redis 7
+  - name: cial-redis
+    engine: REDIS
+    version: "7"
+    size: db-s-1vcpu-1gb  # $15/month
+    num_nodes: 1
+    production: true
+
+# Note: DigitalOcean doesn't provide managed Kafka
+# Options for Kafka:
+# 1. Use Upstash Kafka (serverless): https://upstash.com/
+# 2. Use Confluent Cloud: https://www.confluent.io/confluent-cloud/
+# 3. Deploy Kafka on DigitalOcean Droplet (self-managed)
+# 4. Use Redis Streams as alternative
+
+# Workers (optional - for Celery background tasks)
+# workers:
+#   - name: celery-worker
+#     github:
+#       repo: brettleehari/BTCExpert
+#       branch: main
+#       deploy_on_push: true
+#     source_dir: /cial
+#     dockerfile_path: Dockerfile
+#     instance_size_slug: professional-xs
+#     instance_count: 1
+#     run_command: celery -A infrastructure.celery_app worker --loglevel=info
+#     envs:
+#       # Copy environment variables from api service
+#       - key: ENVIRONMENT
+#         value: production
+#       # ... (same as api service)
+
+# Jobs (optional - for scheduled tasks)
+# jobs:
+#   - name: cache-warmer
+#     kind: PRE_DEPLOY  # Runs before deploy
+#     github:
+#       repo: brettleehari/BTCExpert
+#       branch: main
+#       deploy_on_push: true
+#     source_dir: /cial
+#     dockerfile_path: Dockerfile
+#     run_command: python -c "import asyncio; from infrastructure.caching import get_cache_manager; asyncio.run(get_cache_manager().warm_cache())"
+
+# Static sites (optional - if you add frontend)
+# static_sites:
+#   - name: frontend
+#     github:
+#       repo: brettleehari/BTCExpert
+#       branch: main
+#       deploy_on_push: true
+#     source_dir: /frontend
+#     output_dir: /build
+#     build_command: npm run build
+#     routes:
+#       - path: /
+
+# Alerts (optional)
+# alerts:
+#   - rule: DEPLOYMENT_FAILED
+#   - rule: DOMAIN_FAILED
+#   - rule: CPU_UTILIZATION
+#     value: 80
+#   - rule: MEM_UTILIZATION
+#     value: 80
+
+# Domains (optional - add custom domain)
+# domains:
+#   - domain: api.yourdomain.com
+#     type: PRIMARY
+#     zone: yourdomain.com

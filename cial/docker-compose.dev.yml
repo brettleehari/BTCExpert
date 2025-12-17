@@ -1,0 +1,99 @@
+# Docker Compose for Development Environment
+# Usage: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # CIAL Development Server with Hot-Reload
+  cial-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: cial-dev
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: cial_ltm
+      POSTGRES_USER: cial_user
+      POSTGRES_PASSWORD: cial_password
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - .:/app  # Mount source code for hot-reload
+      - /app/__pycache__  # Exclude pycache
+    networks:
+      - cial-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # PostgreSQL (same as production)
+  postgres:
+    image: pgvector/pgvector:pg16-v0.7.4
+    container_name: cial-postgres-dev
+    environment:
+      POSTGRES_DB: cial_ltm
+      POSTGRES_USER: cial_user
+      POSTGRES_PASSWORD: cial_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - cial-network
+
+  # Redis (same as production)
+  redis:
+    image: redis:7.2.4-alpine
+    container_name: cial-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - cial-network
+
+  # Zookeeper (same as production)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: cial-zookeeper-dev
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - cial-network
+
+  # Kafka (same as production)
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: cial-kafka-dev
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - cial-network
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  cial-network:
+    driver: bridge
