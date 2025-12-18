@@ -12,7 +12,7 @@ services:
     dockerfilePath: ./cial/Dockerfile
     dockerContext: ./cial
     region: oregon  # Options: oregon, ohio, virginia, frankfurt, singapore
-    plan: starter  # $7/month - Upgrade to 'standard' ($25/mo) for production
+    plan: free  # FREE tier - Upgrade to 'starter' ($7/mo) or 'standard' ($25/mo) for production
     numInstances: 1  # Increase to 2+ for production
 
     # Health check
@@ -92,13 +92,13 @@ databases:
   # PostgreSQL 16 with pgvector
   - name: cial-postgres
     databaseName: cial
-    plan: starter  # Free - Upgrade to 'standard' for production
+    plan: free  # FREE tier - Upgrade to 'starter' ($7/mo) or 'standard' ($25/mo) for production
     region: oregon
     postgresMajorVersion: 16
 
   # Redis 7
   - name: cial-redis
-    plan: starter  # Free - Upgrade to 'standard' for production
+    plan: free  # FREE tier - Upgrade to 'starter' ($7/mo) or 'standard' ($25/mo) for production
     region: oregon
     # Note: maxmemoryPolicy is set to allkeys-lru by default by Render
 
