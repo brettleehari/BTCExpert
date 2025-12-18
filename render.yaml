@@ -100,7 +100,7 @@ databases:
   - name: cial-redis
     plan: starter  # Free - Upgrade to 'standard' for production
     region: oregon
-    maxmemoryPolicy: allkeys-lru  # Eviction policy
+    # Note: maxmemoryPolicy is set to allkeys-lru by default by Render
 
 # Note: Render doesn't provide managed Kafka
 # Options:
