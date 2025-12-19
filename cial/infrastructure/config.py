@@ -7,9 +7,10 @@ Performance: 20-50% faster validation
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, computed_field
-from typing import List
+from pydantic import Field, computed_field, model_validator
+from typing import List, Optional
 from functools import lru_cache
+from urllib.parse import urlparse
 
 
 class Settings(BaseSettings):
@@ -42,6 +43,8 @@ class Settings(BaseSettings):
     )
 
     # Redis Configuration (Short-Term Memory)
+    # Can use REDIS_URL (full connection string) or individual fields
+    REDIS_URL: Optional[str] = Field(default=None, validation_alias="REDIS_URL")
     REDIS_HOST: str = Field(default="localhost", validation_alias="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT", ge=1, le=65535)
     REDIS_DB: int = Field(default=0, validation_alias="REDIS_DB", ge=0, le=15)
@@ -55,11 +58,61 @@ class Settings(BaseSettings):
     )
 
     # PostgreSQL Configuration (Long-Term Memory)
+    # Can use DATABASE_URL (full connection string) or individual fields
+    DATABASE_URL: Optional[str] = Field(default=None, validation_alias="DATABASE_URL")
     POSTGRES_HOST: str = Field(default="localhost", validation_alias="POSTGRES_HOST")
     POSTGRES_PORT: int = Field(default=5432, validation_alias="POSTGRES_PORT", ge=1, le=65535)
     POSTGRES_DB: str = Field(default="cial_ltm", validation_alias="POSTGRES_DB")
     POSTGRES_USER: str = Field(default="cial_user", validation_alias="POSTGRES_USER")
     POSTGRES_PASSWORD: str = Field(default="cial_password", validation_alias="POSTGRES_PASSWORD")
+
+    @model_validator(mode='after')
+    def parse_connection_urls(self) -> 'Settings':
+        """
+        Parse REDIS_URL and DATABASE_URL if provided.
+
+        This allows deployment platforms like Render to provide full connection
+        strings which we parse into individual components.
+        """
+        # Parse REDIS_URL if provided
+        if self.REDIS_URL:
+            try:
+                parsed = urlparse(self.REDIS_URL)
+                if parsed.hostname:
+                    self.REDIS_HOST = parsed.hostname
+                if parsed.port:
+                    self.REDIS_PORT = parsed.port
+                if parsed.password:
+                    self.REDIS_PASSWORD = parsed.password
+                # Extract DB from path (e.g., /0, /1)
+                if parsed.path and len(parsed.path) > 1:
+                    db_str = parsed.path.lstrip('/')
+                    if db_str.isdigit():
+                        self.REDIS_DB = int(db_str)
+            except Exception as e:
+                # If parsing fails, keep defaults
+                pass
+
+        # Parse DATABASE_URL if provided
+        if self.DATABASE_URL:
+            try:
+                # Handle postgres:// or postgresql:// schemes
+                parsed = urlparse(self.DATABASE_URL)
+                if parsed.hostname:
+                    self.POSTGRES_HOST = parsed.hostname
+                if parsed.port:
+                    self.POSTGRES_PORT = parsed.port
+                if parsed.username:
+                    self.POSTGRES_USER = parsed.username
+                if parsed.password:
+                    self.POSTGRES_PASSWORD = parsed.password
+                if parsed.path and len(parsed.path) > 1:
+                    self.POSTGRES_DB = parsed.path.lstrip('/')
+            except Exception as e:
+                # If parsing fails, keep defaults
+                pass
+
+        return self
 
     @computed_field  # Pydantic V2 computed field
     @property

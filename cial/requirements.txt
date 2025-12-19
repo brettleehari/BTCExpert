@@ -33,8 +33,9 @@ alembic==1.13.0
 chromadb==0.5.0
 pgvector==0.3.0
 
-# Time-Series Database
-timescaledb==0.5.2
+# Note: TimescaleDB is a PostgreSQL extension, not a Python package
+# It's installed in the PostgreSQL database, not via pip
+# See: https://docs.timescale.com/self-hosted/latest/install/
 
 # Data Validation & Serialization
 pydantic[email]==2.9.0
