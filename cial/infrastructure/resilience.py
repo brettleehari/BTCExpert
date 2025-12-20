@@ -17,6 +17,7 @@ from typing import Callable, Any, Optional, Dict, TypeVar, ParamSpec
 from functools import wraps
 import asyncio
 import time
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
 import pybreaker
@@ -221,8 +222,8 @@ def retry_with_backoff(
             max=max_wait
         ),
         retry=retry_if_exception_type(exceptions),
-        before_sleep=before_sleep_log(log, logger.WARNING),
-        after=after_log(log, logger.INFO),
+        before_sleep=before_sleep_log(log, logging.WARNING),
+        after=after_log(log, logging.INFO),
         reraise=True
     )
 

@@ -57,10 +57,14 @@ async def lifespan(app: FastAPI):
     initialize_default_connectors()
     logger.info("✅ Default connectors initialized")
 
-    # Initialize WebSocket manager
-    from infrastructure.websocket_manager import get_websocket_manager
-    await get_websocket_manager()
-    logger.info("✅ WebSocket manager initialized")
+    # Initialize WebSocket manager (optional - gracefully degrade if unavailable)
+    try:
+        from infrastructure.websocket_manager import get_websocket_manager
+        await get_websocket_manager()
+        logger.info("✅ WebSocket manager initialized")
+    except Exception as e:
+        logger.warning(f"⚠️  WebSocket manager initialization failed: {e}")
+        logger.warning("WebSocket streaming will be unavailable, but API will still work")
 
     logger.info("🎉 CIAL startup complete - Ready to serve requests!")
 
