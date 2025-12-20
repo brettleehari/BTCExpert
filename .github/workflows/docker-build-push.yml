@@ -1,0 +1,112 @@
+name: Build and Push Docker Image
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/cial
+
+jobs:
+  # Job 1: Build and test Docker image
+  build-and-push:
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./cial
+          file: ./cial/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Test Docker image (import validation)
+        run: |
+          docker run --rm \
+            -e DATABASE_URL="postgresql://test:test@localhost:5432/test" \
+            -e REDIS_URL="redis://localhost:6379/0" \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            python -c "
+import sys
+print('Testing critical imports...')
+try:
+    from infrastructure.resilience import retry_with_backoff
+    print('✅ resilience module imported successfully')
+    from infrastructure.config import settings
+    print('✅ config module imported successfully')
+    from main import app
+    print('✅ main module imported successfully')
+    print('✅ All imports successful - ready for deployment')
+    sys.exit(0)
+except Exception as e:
+    print(f'❌ Import failed: {e}')
+    sys.exit(1)
+"
+
+      - name: Image digest
+        run: echo ${{ steps.meta.outputs.digest }}
+
+  # Job 2: Security scan
+  security-scan:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'table'
+          exit-code: '0'  # Don't fail on vulnerabilities (just warn)
+          severity: 'CRITICAL,HIGH'
+
+  # Job 3: Trigger Render deployment
+  trigger-deployment:
+    needs: [build-and-push, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Trigger Render Deploy Hook
+        if: secrets.RENDER_DEPLOY_HOOK_URL != ''
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
