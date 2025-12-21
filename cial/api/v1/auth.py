@@ -33,8 +33,8 @@ class TokenRequest(BaseModel):
     """Request model for token creation."""
 
     username: str
-    password: Optional[str] = None  # For demo purposes
-    scopes: List[str] = []
+    password: str | None = None  # For demo purposes
+    scopes: list[str] = []
 
 
 class APIKeyRequest(BaseModel):
@@ -43,13 +43,13 @@ class APIKeyRequest(BaseModel):
     name: str
     type: APIKeyType = APIKeyType.READ_ONLY
     rate_limit: int = 100
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
 
 @router.post("/token")
 @limiter.limit(RateLimits.STRICT)
 @trace_operation("auth_create_token")
-async def create_token(request: TokenRequest) -> VersionedResponse[Dict[str, str]]:
+async def create_token(request: TokenRequest) -> VersionedResponse[dict[str, str]]:
     """
     Create JWT access token.
 
@@ -102,7 +102,7 @@ async def create_token(request: TokenRequest) -> VersionedResponse[Dict[str, str
 @trace_operation("auth_verify_token")
 async def verify_token(
     user: TokenData = Depends(get_current_user),
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Verify JWT token and return decoded data.
 
@@ -131,7 +131,7 @@ async def verify_token(
 @router.post("/api-key")
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_create_api_key")
-async def create_api_key(request: APIKeyRequest) -> VersionedResponse[Dict[str, Any]]:
+async def create_api_key(request: APIKeyRequest) -> VersionedResponse[dict[str, Any]]:
     """
     Create a new API key.
 
@@ -197,7 +197,7 @@ async def create_api_key(request: APIKeyRequest) -> VersionedResponse[Dict[str, 
 @trace_operation("auth_list_api_keys")
 async def list_api_keys(
     include_inactive: bool = Query(False, description="Include revoked keys")
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     List all API keys (without the actual key values).
 
@@ -232,7 +232,7 @@ async def list_api_keys(
 @trace_operation("auth_revoke_api_key")
 async def revoke_api_key(
     api_key: str = Query(..., description="API key to revoke")
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Revoke an API key.
 
@@ -271,7 +271,7 @@ async def revoke_api_key(
 @trace_operation("auth_validate_api_key")
 async def validate_api_key_endpoint(
     api_key_obj: APIKey = Depends(verify_api_key),
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Validate an API key and return its details.
 
@@ -306,7 +306,7 @@ async def validate_api_key_endpoint(
 @router.get("/stats")
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_stats")
-async def get_security_stats() -> VersionedResponse[Dict[str, Any]]:
+async def get_security_stats() -> VersionedResponse[dict[str, Any]]:
     """
     Get security and authentication statistics.
 
@@ -329,7 +329,7 @@ async def get_security_stats() -> VersionedResponse[Dict[str, Any]]:
 
 
 @router.get("/health")
-async def security_health() -> VersionedResponse[Dict[str, str]]:
+async def security_health() -> VersionedResponse[dict[str, str]]:
     """
     Check security system health.
 

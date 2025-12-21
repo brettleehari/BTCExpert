@@ -21,7 +21,7 @@ router = APIRouter()
 @router.websocket("/stream")
 async def intelligence_stream(
     websocket: WebSocket,
-    auth_token: Optional[str] = Query(None, description="Optional authentication token"),
+    auth_token: str | None = Query(None, description="Optional authentication token"),
 ):
     """
     WebSocket endpoint for real-time intelligence streaming.
@@ -164,7 +164,7 @@ async def intelligence_stream(
 
 @router.get("/connections")
 @trace_operation("websocket_connections")
-async def get_connections() -> VersionedResponse[Dict[str, Any]]:
+async def get_connections() -> VersionedResponse[dict[str, Any]]:
     """
     Get information about all active WebSocket connections.
 
@@ -200,7 +200,7 @@ async def get_connections() -> VersionedResponse[Dict[str, Any]]:
 
 @router.get("/connection/{connection_id}")
 @trace_operation("websocket_connection_info")
-async def get_connection_info(connection_id: str) -> VersionedResponse[Dict[str, Any]]:
+async def get_connection_info(connection_id: str) -> VersionedResponse[dict[str, Any]]:
     """
     Get information about a specific WebSocket connection.
 
@@ -234,7 +234,7 @@ async def get_connection_info(connection_id: str) -> VersionedResponse[Dict[str,
 
 @router.get("/stats")
 @trace_operation("websocket_stats")
-async def get_websocket_stats() -> VersionedResponse[Dict[str, Any]]:
+async def get_websocket_stats() -> VersionedResponse[dict[str, Any]]:
     """
     Get WebSocket manager statistics.
 
@@ -266,11 +266,11 @@ async def get_websocket_stats() -> VersionedResponse[Dict[str, Any]]:
 @router.post("/broadcast")
 @trace_operation("websocket_broadcast")
 async def broadcast_message(
-    message: Dict[str, Any],
-    subscription_filter: Optional[str] = Query(
+    message: dict[str, Any],
+    subscription_filter: str | None = Query(
         None, description="Only broadcast to clients with this subscription"
     ),
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Broadcast a message to all connected WebSocket clients.
 
@@ -317,7 +317,7 @@ async def broadcast_message(
 
 
 @router.get("/health")
-async def websocket_health() -> VersionedResponse[Dict[str, Any]]:
+async def websocket_health() -> VersionedResponse[dict[str, Any]]:
     """
     Check WebSocket system health.
 

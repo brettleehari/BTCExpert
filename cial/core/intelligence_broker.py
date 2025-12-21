@@ -50,8 +50,8 @@ class IntelligenceBroker:
         self.ltm = get_long_term_memory()
         self.validator = get_intelligence_validator()
         self.kafka = None  # Lazy initialization
-        self._connectors: Dict[str, DataConnector] = {}
-        self._message_history: List[IntelligenceMessage] = []
+        self._connectors: dict[str, DataConnector] = {}
+        self._message_history: list[IntelligenceMessage] = []
         self._routing_stats = defaultdict(int)
 
         logger.info("IntelligenceBroker initialized")
@@ -63,9 +63,9 @@ class IntelligenceBroker:
         self,
         intelligence_type: IntelligenceType,
         source: str,
-        data: Dict[str, Any],
-        symbol: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any],
+        symbol: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> IntelligenceMessage:
         """
         Process raw intelligence data through the CIAL pipeline.
@@ -150,9 +150,9 @@ class IntelligenceBroker:
         self,
         intelligence_type: IntelligenceType,
         source: str,
-        data: Dict[str, Any],
-        symbol: Optional[str],
-        metadata: Dict[str, Any],
+        data: dict[str, Any],
+        symbol: str | None,
+        metadata: dict[str, Any],
     ) -> IntelligenceMessage:
         """Create intelligence message with unique ID and timestamp."""
         message_id = f"{intelligence_type.value}_{symbol or 'global'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
@@ -277,7 +277,7 @@ class IntelligenceBroker:
 
             if success:
                 logger.debug(
-                    f"Intelligence published to Kafka",
+                    "Intelligence published to Kafka",
                     message_id=message.id,
                     type=message.type.value,
                     importance=message.importance.value,
@@ -301,7 +301,7 @@ class IntelligenceBroker:
             # Create async task for LTM storage (non-blocking)
             asyncio.create_task(self.ltm.store_intelligence(message, routed_to_count))
 
-            logger.debug(f"LTM storage initiated", message_id=message.id)
+            logger.debug("LTM storage initiated", message_id=message.id)
 
         except Exception as e:
             # Don't fail the pipeline if LTM storage fails
@@ -389,15 +389,15 @@ class IntelligenceBroker:
 
         return True
 
-    def get_connector(self, connector_id: str) -> Optional[DataConnector]:
+    def get_connector(self, connector_id: str) -> DataConnector | None:
         """Get data connector by ID."""
         return self._connectors.get(connector_id)
 
-    def get_all_connectors(self) -> List[DataConnector]:
+    def get_all_connectors(self) -> list[DataConnector]:
         """Get all registered data connectors."""
         return list(self._connectors.values())
 
-    def get_connectors_by_type(self, intelligence_type: IntelligenceType) -> List[DataConnector]:
+    def get_connectors_by_type(self, intelligence_type: IntelligenceType) -> list[DataConnector]:
         """Get connectors that provide specific intelligence type."""
         return [
             conn
@@ -409,10 +409,10 @@ class IntelligenceBroker:
 
     def get_recent_intelligence(
         self,
-        intelligence_type: Optional[IntelligenceType] = None,
-        symbol: Optional[str] = None,
+        intelligence_type: IntelligenceType | None = None,
+        symbol: str | None = None,
         limit: int = 100,
-    ) -> List[IntelligenceMessage]:
+    ) -> list[IntelligenceMessage]:
         """
         Get recent intelligence messages.
 
@@ -436,7 +436,7 @@ class IntelligenceBroker:
         # Return most recent first, limited
         return sorted(messages, key=lambda m: m.timestamp, reverse=True)[:limit]
 
-    def get_broker_stats(self) -> Dict[str, Any]:
+    def get_broker_stats(self) -> dict[str, Any]:
         """
         Get broker statistics.
 
@@ -453,7 +453,7 @@ class IntelligenceBroker:
 
 
 # Global broker instance
-_broker: Optional[IntelligenceBroker] = None
+_broker: IntelligenceBroker | None = None
 
 
 def get_intelligence_broker() -> IntelligenceBroker:

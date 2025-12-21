@@ -44,8 +44,8 @@ class AgentDecision:
         decision_type: AgentDecisionType,
         confidence: float,
         reasoning: str,
-        data: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.id = f"decision_{uuid.uuid4().hex[:12]}"
         self.decision_type = decision_type
@@ -55,7 +55,7 @@ class AgentDecision:
         self.metadata = metadata or {}
         self.timestamp = datetime.utcnow()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert decision to dictionary."""
         return {
             "id": self.id,
@@ -85,7 +85,7 @@ class BaseAgent(ABC):
         agent_id: str,
         agent_type: AgentType,
         capabilities: AgentCapabilities,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.agent_id = agent_id
         self.agent_type = agent_type
@@ -98,11 +98,11 @@ class BaseAgent(ABC):
         self.ltm = get_long_term_memory()
 
         # Agent state
-        self._context: Dict[str, Any] = {}
-        self._decisions: List[AgentDecision] = []
+        self._context: dict[str, Any] = {}
+        self._decisions: list[AgentDecision] = []
         self._intelligence_queue: asyncio.Queue = asyncio.Queue()
         self._running = False
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
 
         logger.info(
             f"Agent initialized: {self.agent_id}",
@@ -322,29 +322,29 @@ class BaseAgent(ABC):
 
     # Memory Access Helpers
 
-    async def get_current_price(self, symbol: str) -> Optional[Dict[str, Any]]:
+    async def get_current_price(self, symbol: str) -> dict[str, Any] | None:
         """Get current price for a symbol from STM."""
         return self.stm.get_current_price(symbol)
 
-    async def get_price_history(self, symbol: str, days: int = 7) -> List[Dict[str, Any]]:
+    async def get_price_history(self, symbol: str, days: int = 7) -> list[dict[str, Any]]:
         """Get historical prices from LTM."""
         from datetime import timedelta
 
         start_time = datetime.utcnow() - timedelta(days=days)
         return await self.ltm.get_historical_prices(symbol, start_time)
 
-    async def get_recent_decisions(self, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_recent_decisions(self, limit: int = 10) -> list[dict[str, Any]]:
         """Get recent decisions from STM."""
         return self.stm.get_agent_decisions(self.agent_id, limit)
 
-    def get_context(self) -> Dict[str, Any]:
+    def get_context(self) -> dict[str, Any]:
         """Get current agent context."""
         return self._context.copy()
 
     # Abstract Methods (must be implemented by subclasses)
 
     @abstractmethod
-    async def process_intelligence(self, message: IntelligenceMessage) -> Optional[AgentDecision]:
+    async def process_intelligence(self, message: IntelligenceMessage) -> AgentDecision | None:
         """
         Process intelligence and make a decision.
 
@@ -386,7 +386,7 @@ class BaseAgent(ABC):
 
     # Utility Methods
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get agent statistics.
 
@@ -403,7 +403,7 @@ class BaseAgent(ABC):
             "queue_size": self._intelligence_queue.qsize(),
         }
 
-    def _count_decisions_by_type(self) -> Dict[str, int]:
+    def _count_decisions_by_type(self) -> dict[str, int]:
         """Count decisions by type."""
         counts = {}
         for decision in self._decisions:

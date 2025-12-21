@@ -34,7 +34,7 @@ async def validate_intelligence(message: IntelligenceMessage = Body(...)):
 
     except Exception as e:
         logger.error(f"Validation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Validation failed")
+        raise HTTPException(status_code=500, detail="Validation failed") from e
 
 
 @router.get("/rules")
@@ -52,7 +52,7 @@ async def get_validation_rules():
 
 
 @router.get("/source-reliability")
-async def get_source_reliability(source: Optional[str] = None):
+async def get_source_reliability(source: str | None = None):
     """
     Get reliability scores for data sources.
 
@@ -112,10 +112,10 @@ async def cross_check_intelligence(intelligence_type: str, symbol: str):
     """
     try:
         intel_type = IntelligenceType(intelligence_type)
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid intelligence type: {intelligence_type}"
-        )
+        ) from e
 
     # Get recent intelligence from multiple sources
     from memory.short_term_memory import get_short_term_memory
@@ -179,7 +179,7 @@ async def cross_check_intelligence(intelligence_type: str, symbol: str):
 
 
 @router.get("/consensus/{symbol}")
-async def get_consensus(symbol: str, intelligence_type: Optional[str] = "price"):
+async def get_consensus(symbol: str, intelligence_type: str | None = "price"):
     """
     Get consensus intelligence for a symbol.
 
@@ -195,10 +195,10 @@ async def get_consensus(symbol: str, intelligence_type: Optional[str] = "price")
     """
     try:
         intel_type = IntelligenceType(intelligence_type)
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid intelligence type: {intelligence_type}"
-        )
+        ) from e
 
     from memory.short_term_memory import get_short_term_memory
 

@@ -68,11 +68,11 @@ class IntelligenceMessage(BaseModel):
     type: IntelligenceType = Field(..., description="Type of intelligence")
     importance: IntelligenceImportance = Field(..., description="Importance classification")
     source: str = Field(..., description="Data source (e.g., coingecko, newsapi)")
-    symbol: Optional[str] = Field(None, description="Cryptocurrency symbol (BTC, ETH, etc.)")
-    data: Dict[str, Any] = Field(..., description="Intelligence data payload")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    symbol: str | None = Field(None, description="Cryptocurrency symbol (BTC, ETH, etc.)")
+    data: dict[str, Any] = Field(..., description="Intelligence data payload")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Message timestamp")
-    expires_at: Optional[datetime] = Field(None, description="Expiration timestamp")
+    expires_at: datetime | None = Field(None, description="Expiration timestamp")
     validated: bool = Field(default=False, description="Whether data has been cross-validated")
 
     model_config = ConfigDict(
@@ -104,8 +104,8 @@ class PriceIntelligence(BaseModel):
     price_change_percentage_24h: float
     volume_24h: float
     market_cap: float
-    high_24h: Optional[float] = None
-    low_24h: Optional[float] = None
+    high_24h: float | None = None
+    low_24h: float | None = None
 
 
 class SentimentIntelligence(BaseModel):
@@ -115,7 +115,7 @@ class SentimentIntelligence(BaseModel):
     sentiment_score: float = Field(..., ge=-1, le=1, description="Sentiment score from -1 to 1")
     confidence: float = Field(..., ge=0, le=1, description="Confidence in sentiment analysis")
     source_count: int = Field(..., description="Number of sources analyzed")
-    trending_keywords: List[str] = Field(default_factory=list)
+    trending_keywords: list[str] = Field(default_factory=list)
     bullish_count: int = 0
     bearish_count: int = 0
     neutral_count: int = 0
@@ -127,10 +127,10 @@ class SentimentIntelligence(BaseModel):
 class AgentCapabilities(BaseModel):
     """Agent capabilities and configuration"""
 
-    intelligence_types: List[IntelligenceType] = Field(
+    intelligence_types: list[IntelligenceType] = Field(
         ..., description="Types of intelligence the agent consumes"
     )
-    symbols: List[str] = Field(
+    symbols: list[str] = Field(
         default_factory=list, description="Symbols the agent monitors (empty = all)"
     )
     min_importance: IntelligenceImportance = Field(default=IntelligenceImportance.NORMAL)
@@ -144,7 +144,7 @@ class AgentRegistration(BaseModel):
     agent_id: str = Field(..., description="Unique agent identifier", min_length=3)
     agent_type: AgentType = Field(..., description="Type of agent")
     capabilities: AgentCapabilities = Field(..., description="Agent capabilities")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional agent metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional agent metadata")
 
     @field_validator("agent_id")
     @classmethod
@@ -181,7 +181,7 @@ class Agent(BaseModel):
     status: AgentStatus = Field(default=AgentStatus.ACTIVE)
     registered_at: datetime = Field(default_factory=datetime.utcnow)
     last_active: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     message_count: int = Field(default=0, description="Total messages delivered to agent")
 
 
@@ -189,7 +189,7 @@ class AgentStatusUpdate(BaseModel):
     """Agent status update request"""
 
     status: AgentStatus
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
 
 # API Response Models
@@ -201,22 +201,22 @@ class AgentRegistrationResponse(BaseModel):
     success: bool
     agent_id: str
     message: str
-    websocket_url: Optional[str] = None
-    kafka_topics: List[str] = Field(default_factory=list)
+    websocket_url: str | None = None
+    kafka_topics: list[str] = Field(default_factory=list)
 
 
 class AgentListResponse(BaseModel):
     """Response for listing agents"""
 
     total: int
-    agents: List[Agent]
+    agents: list[Agent]
 
 
 class IntelligenceStreamResponse(BaseModel):
     """Response for intelligence stream query"""
 
     stream_type: str
-    messages: List[IntelligenceMessage]
+    messages: list[IntelligenceMessage]
     total: int
     has_more: bool
 
@@ -229,11 +229,11 @@ class DataConnector(BaseModel):
 
     connector_id: str
     name: str
-    intelligence_types: List[IntelligenceType]
+    intelligence_types: list[IntelligenceType]
     reliability_score: float = Field(default=1.0, ge=0.0, le=1.0)
-    rate_limit: Optional[str] = None
+    rate_limit: str | None = None
     enabled: bool = True
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class DataConnectorHealth(BaseModel):
@@ -241,8 +241,8 @@ class DataConnectorHealth(BaseModel):
 
     connector_id: str
     healthy: bool
-    last_success: Optional[datetime] = None
-    last_error: Optional[str] = None
+    last_success: datetime | None = None
+    last_error: str | None = None
     success_rate: float = Field(default=1.0, ge=0.0, le=1.0)
     request_count: int = 0
     error_count: int = 0

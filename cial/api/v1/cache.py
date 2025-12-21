@@ -20,7 +20,7 @@ router = APIRouter()
 
 @router.get("/stats")
 @trace_operation("cache_stats")
-async def get_cache_stats() -> VersionedResponse[Dict[str, Any]]:
+async def get_cache_stats() -> VersionedResponse[dict[str, Any]]:
     """
     Get cache statistics including hit/miss rates.
 
@@ -51,10 +51,10 @@ async def get_cache_stats() -> VersionedResponse[Dict[str, Any]]:
 @router.post("/warm")
 @trace_operation("cache_warm")
 async def warm_cache(
-    symbols: Optional[List[str]] = Query(
+    symbols: list[str] | None = Query(
         None, description="Specific symbols to warm (uses popular symbols if not provided)"
     )
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Trigger cache warming for specified symbols.
 
@@ -98,7 +98,7 @@ async def invalidate_cache_key(
     cache_tier: str = Query(
         "both", description="Cache tier to invalidate: 'memory', 'redis', or 'both'"
     ),
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Invalidate a specific cache key.
 
@@ -140,7 +140,7 @@ async def invalidate_cache_key(
 
 @router.delete("/invalidate/pattern/{pattern}")
 @trace_operation("cache_invalidate_pattern")
-async def invalidate_cache_pattern(pattern: str) -> VersionedResponse[Dict[str, Any]]:
+async def invalidate_cache_pattern(pattern: str) -> VersionedResponse[dict[str, Any]]:
     """
     Invalidate all cache keys matching a pattern.
 
@@ -184,7 +184,7 @@ async def get_cache_value(
     cache_tier: str = Query(
         "both", description="Cache tier to query: 'memory', 'redis', or 'both'"
     ),
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Get value from cache (for debugging/monitoring).
 
@@ -229,9 +229,9 @@ async def get_cache_value(
 async def set_cache_value(
     key: str = Query(..., description="Cache key"),
     value: Any = Query(..., description="Value to cache"),
-    ttl: Optional[int] = Query(None, description="Time-to-live in seconds"),
+    ttl: int | None = Query(None, description="Time-to-live in seconds"),
     cache_tier: str = Query("both", description="Cache tier: 'memory', 'redis', or 'both'"),
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Set value in cache (for testing/development).
 
@@ -273,7 +273,7 @@ async def set_cache_value(
 
 
 @router.get("/health")
-async def cache_health() -> VersionedResponse[Dict[str, str]]:
+async def cache_health() -> VersionedResponse[dict[str, str]]:
     """
     Check cache layer health status.
 

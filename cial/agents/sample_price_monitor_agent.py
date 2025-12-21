@@ -68,7 +68,7 @@ class PriceMonitorAgent(BaseAgent):
                 self.baseline_prices[symbol] = current_price.get("current_price", 0)
                 logger.info(f"Baseline set for {symbol}", price=self.baseline_prices[symbol])
 
-    async def process_intelligence(self, message: IntelligenceMessage) -> Optional[AgentDecision]:
+    async def process_intelligence(self, message: IntelligenceMessage) -> AgentDecision | None:
         """
         Process price intelligence and make decisions.
 
@@ -87,7 +87,7 @@ class PriceMonitorAgent(BaseAgent):
             return None
 
         logger.debug(
-            f"Processing price update",
+            "Processing price update",
             symbol=symbol,
             price=current_price,
             change_24h=price_change_24h,
@@ -201,7 +201,7 @@ class PriceMonitorAgent(BaseAgent):
         else:
             logger.debug(f"HOLD: {symbol}", price=current_price)
 
-    async def reset_baseline(self, symbol: Optional[str] = None):
+    async def reset_baseline(self, symbol: str | None = None):
         """
         Reset baseline price(s).
 

@@ -28,8 +28,8 @@ class KafkaManager:
     """
 
     def __init__(self):
-        self._producer: Optional[KafkaProducer] = None
-        self._admin_client: Optional[KafkaAdminClient] = None
+        self._producer: KafkaProducer | None = None
+        self._admin_client: KafkaAdminClient | None = None
         self._connected = False
 
     def connect(self):
@@ -102,7 +102,7 @@ class KafkaManager:
             logger.warning(f"Failed to create some topics: {e}")
 
     def publish_intelligence(
-        self, message: IntelligenceMessage, topics: Optional[List[str]] = None
+        self, message: IntelligenceMessage, topics: list[str] | None = None
     ) -> bool:
         """
         Publish intelligence message to Kafka topics.
@@ -142,7 +142,7 @@ class KafkaManager:
             self._producer.flush(timeout=5)
 
             logger.debug(
-                f"Intelligence published to Kafka",
+                "Intelligence published to Kafka",
                 message_id=message.id,
                 topics=topics,
                 type=message.type.value,
@@ -155,7 +155,7 @@ class KafkaManager:
             logger.error(f"Failed to publish intelligence: {e}", exc_info=True)
             return False
 
-    def _get_topics_for_message(self, message: IntelligenceMessage) -> List[str]:
+    def _get_topics_for_message(self, message: IntelligenceMessage) -> list[str]:
         """
         Determine topics for a message based on type and importance.
 
@@ -188,7 +188,7 @@ class KafkaManager:
     def _on_send_success(self, record_metadata, topic: str, message_id: str):
         """Callback for successful message send."""
         logger.debug(
-            f"Message sent successfully",
+            "Message sent successfully",
             topic=topic,
             partition=record_metadata.partition,
             offset=record_metadata.offset,
@@ -197,7 +197,7 @@ class KafkaManager:
 
     def _on_send_error(self, excp, topic: str, message_id: str):
         """Callback for failed message send."""
-        logger.error(f"Failed to send message", topic=topic, message_id=message_id, error=str(excp))
+        logger.error("Failed to send message", topic=topic, message_id=message_id, error=str(excp))
 
     def create_topic(
         self, topic_name: str, num_partitions: int = 2, replication_factor: int = 1
@@ -231,7 +231,7 @@ class KafkaManager:
             logger.error(f"Failed to create topic {topic_name}: {e}", exc_info=True)
             return False
 
-    def get_topics(self) -> List[str]:
+    def get_topics(self) -> list[str]:
         """
         Get list of all Kafka topics.
 
@@ -246,8 +246,8 @@ class KafkaManager:
             return []
 
     def create_consumer(
-        self, topics: List[str], group_id: str, auto_offset_reset: str = "latest"
-    ) -> Optional[KafkaConsumer]:
+        self, topics: list[str], group_id: str, auto_offset_reset: str = "latest"
+    ) -> KafkaConsumer | None:
         """
         Create a Kafka consumer for specified topics.
 
@@ -271,7 +271,7 @@ class KafkaManager:
                 max_poll_records=100,
             )
 
-            logger.info(f"Kafka consumer created", topics=topics, group_id=group_id)
+            logger.info("Kafka consumer created", topics=topics, group_id=group_id)
 
             return consumer
 
@@ -283,7 +283,7 @@ class KafkaManager:
         """Check if Kafka is connected."""
         return self._connected
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get Kafka connection information."""
         if not self.is_connected():
             return {"connected": False}
@@ -302,7 +302,7 @@ class KafkaManager:
 
 
 # Global Kafka manager instance
-_kafka_manager: Optional[KafkaManager] = None
+_kafka_manager: KafkaManager | None = None
 
 
 def get_kafka_manager() -> KafkaManager:

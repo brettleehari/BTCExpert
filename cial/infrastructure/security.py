@@ -42,9 +42,9 @@ class APIKeyType(str, Enum):
 class TokenData(BaseModel):
     """JWT token data structure."""
 
-    username: Optional[str] = None
-    api_key: Optional[str] = None
-    scopes: List[str] = []
+    username: str | None = None
+    api_key: str | None = None
+    scopes: list[str] = []
 
 
 class APIKey(BaseModel):
@@ -55,10 +55,10 @@ class APIKey(BaseModel):
     name: str
     type: APIKeyType
     created_at: datetime
-    last_used: Optional[datetime] = None
+    last_used: datetime | None = None
     is_active: bool = True
     rate_limit: int = 100  # requests per minute
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
 
 # Password hashing
@@ -77,7 +77,7 @@ class SecurityManager:
     """
 
     def __init__(self):
-        self.api_keys: Dict[str, APIKey] = {}
+        self.api_keys: dict[str, APIKey] = {}
 
         # Statistics
         self.stats = {
@@ -105,7 +105,7 @@ class SecurityManager:
 
     @trace_operation("jwt_create_token")
     def create_access_token(
-        self, data: Dict[str, Any], expires_delta: Optional[timedelta] = None
+        self, data: dict[str, Any], expires_delta: timedelta | None = None
     ) -> str:
         """
         Create JWT access token.
@@ -135,7 +135,7 @@ class SecurityManager:
         return encoded_jwt
 
     @trace_operation("jwt_verify_token")
-    def verify_access_token(self, token: str) -> Optional[TokenData]:
+    def verify_access_token(self, token: str) -> TokenData | None:
         """
         Verify and decode JWT token.
 
@@ -155,7 +155,7 @@ class SecurityManager:
 
             username: str = payload.get("sub")
             api_key: str = payload.get("api_key")
-            scopes: List[str] = payload.get("scopes", [])
+            scopes: list[str] = payload.get("scopes", [])
 
             if username is None and api_key is None:
                 self.stats["auth_failures"] += 1
@@ -177,7 +177,7 @@ class SecurityManager:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Token validation failed: {str(e)}",
-            )
+            ) from e
 
     @trace_operation("api_key_create")
     def create_api_key(
@@ -185,7 +185,7 @@ class SecurityManager:
         name: str,
         key_type: APIKeyType = APIKeyType.READ_ONLY,
         rate_limit: int = 100,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> APIKey:
         """
         Create a new API key.
@@ -227,7 +227,7 @@ class SecurityManager:
         return api_key_obj
 
     @trace_operation("api_key_validate")
-    def validate_api_key(self, api_key: str) -> Optional[APIKey]:
+    def validate_api_key(self, api_key: str) -> APIKey | None:
         """
         Validate API key and update last_used timestamp.
 
@@ -284,7 +284,7 @@ class SecurityManager:
 
         return False
 
-    def list_api_keys(self, include_inactive: bool = False) -> List[Dict[str, Any]]:
+    def list_api_keys(self, include_inactive: bool = False) -> list[dict[str, Any]]:
         """
         List all API keys (without the actual key values).
 
@@ -314,7 +314,7 @@ class SecurityManager:
 
         return keys
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get security statistics."""
         return {
             **self.stats,
@@ -324,7 +324,7 @@ class SecurityManager:
 
 
 # Global security manager
-_security_manager: Optional[SecurityManager] = None
+_security_manager: SecurityManager | None = None
 
 
 def get_security_manager() -> SecurityManager:
@@ -342,8 +342,8 @@ def get_security_manager() -> SecurityManager:
 
 # FastAPI dependencies
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
-) -> Optional[TokenData]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
+) -> TokenData | None:
     """
     Dependency to get current authenticated user from JWT token.
 
@@ -364,8 +364,8 @@ async def get_current_user(
 
 
 async def verify_api_key(
-    request: Request, credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme)
-) -> Optional[APIKey]:
+    request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme)
+) -> APIKey | None:
     """
     Dependency to verify API key from Authorization header.
 

@@ -121,7 +121,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
 
 # Global container instance
-_container: Optional[ApplicationContainer] = None
+_container: ApplicationContainer | None = None
 
 
 def get_container() -> ApplicationContainer:

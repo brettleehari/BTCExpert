@@ -89,7 +89,7 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     Returns structured error response.
     """
     logger.warning(
-        f"Rate limit exceeded", identifier=get_api_key_or_ip(request), path=request.url.path
+        "Rate limit exceeded", identifier=get_api_key_or_ip(request), path=request.url.path
     )
 
     # Record metric

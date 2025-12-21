@@ -62,12 +62,12 @@ async def register_agent(agent: AgentRegistration = Body(...)):
         )
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to register agent: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Internal server error during agent registration"
-        )
+        ) from e
 
 
 @router.get("/{agent_id}/status", response_model=Agent)

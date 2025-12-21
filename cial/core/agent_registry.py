@@ -29,9 +29,9 @@ class AgentRegistry:
     """
 
     def __init__(self):
-        self._agents: Dict[str, Agent] = {}
-        self._type_index: Dict[AgentType, List[str]] = {}
-        self._intelligence_index: Dict[IntelligenceType, List[str]] = {}
+        self._agents: dict[str, Agent] = {}
+        self._type_index: dict[AgentType, list[str]] = {}
+        self._intelligence_index: dict[IntelligenceType, list[str]] = {}
 
         logger.info("AgentRegistry initialized")
 
@@ -110,7 +110,7 @@ class AgentRegistry:
 
         return True
 
-    def get_agent(self, agent_id: str) -> Optional[Agent]:
+    def get_agent(self, agent_id: str) -> Agent | None:
         """
         Get agent by ID.
 
@@ -123,7 +123,7 @@ class AgentRegistry:
         return self._agents.get(agent_id)
 
     def update_agent_status(
-        self, agent_id: str, status: AgentStatus, metadata: Optional[Dict] = None
+        self, agent_id: str, status: AgentStatus, metadata: dict | None = None
     ) -> bool:
         """
         Update agent status.
@@ -181,7 +181,7 @@ class AgentRegistry:
 
         return True
 
-    def get_all_agents(self) -> List[Agent]:
+    def get_all_agents(self) -> list[Agent]:
         """
         Get all registered agents.
 
@@ -190,7 +190,7 @@ class AgentRegistry:
         """
         return list(self._agents.values())
 
-    def get_agents_by_type(self, agent_type: AgentType) -> List[Agent]:
+    def get_agents_by_type(self, agent_type: AgentType) -> list[Agent]:
         """
         Get all agents of a specific type.
 
@@ -204,8 +204,8 @@ class AgentRegistry:
         return [self._agents[aid] for aid in agent_ids if aid in self._agents]
 
     def get_agents_for_intelligence(
-        self, intelligence_type: IntelligenceType, symbol: Optional[str] = None
-    ) -> List[Agent]:
+        self, intelligence_type: IntelligenceType, symbol: str | None = None
+    ) -> list[Agent]:
         """
         Find agents that should receive specific intelligence.
 
@@ -241,7 +241,7 @@ class AgentRegistry:
         """
         return sum(1 for agent in self._agents.values() if agent.status == AgentStatus.ACTIVE)
 
-    def get_registry_stats(self) -> Dict:
+    def get_registry_stats(self) -> dict:
         """
         Get registry statistics.
 
@@ -299,7 +299,7 @@ class AgentRegistry:
 
 
 # Global agent registry instance
-_registry: Optional[AgentRegistry] = None
+_registry: AgentRegistry | None = None
 
 
 def get_agent_registry() -> AgentRegistry:

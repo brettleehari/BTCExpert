@@ -34,7 +34,7 @@ class ShortTermMemory:
 
     # Intelligence Caching
 
-    def cache_intelligence(self, message: IntelligenceMessage, ttl: Optional[int] = None) -> bool:
+    def cache_intelligence(self, message: IntelligenceMessage, ttl: int | None = None) -> bool:
         """
         Cache intelligence message in STM.
 
@@ -81,8 +81,8 @@ class ShortTermMemory:
             return False
 
     def get_intelligence(
-        self, message_id: str, intelligence_type: IntelligenceType, symbol: Optional[str] = None
-    ) -> Optional[IntelligenceMessage]:
+        self, message_id: str, intelligence_type: IntelligenceType, symbol: str | None = None
+    ) -> IntelligenceMessage | None:
         """
         Retrieve cached intelligence message.
 
@@ -110,8 +110,8 @@ class ShortTermMemory:
             return None
 
     def get_recent_intelligence(
-        self, intelligence_type: IntelligenceType, symbol: Optional[str] = None, limit: int = 100
-    ) -> List[IntelligenceMessage]:
+        self, intelligence_type: IntelligenceType, symbol: str | None = None, limit: int = 100
+    ) -> list[IntelligenceMessage]:
         """
         Get recent intelligence messages from cache.
 
@@ -141,7 +141,7 @@ class ShortTermMemory:
             logger.error(f"Failed to get recent intelligence: {e}", exc_info=True)
             return []
 
-    def get_current_price(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_current_price(self, symbol: str) -> dict[str, Any] | None:
         """
         Get current cached price for a symbol.
 
@@ -163,7 +163,7 @@ class ShortTermMemory:
     # Agent Context Management
 
     def store_agent_context(
-        self, agent_id: str, context: Dict[str, Any], ttl: int = 86400  # 24 hours default
+        self, agent_id: str, context: dict[str, Any], ttl: int = 86400  # 24 hours default
     ) -> bool:
         """
         Store agent's working context.
@@ -188,7 +188,7 @@ class ShortTermMemory:
             logger.error(f"Failed to store agent context: {e}", exc_info=True)
             return False
 
-    def get_agent_context(self, agent_id: str) -> Optional[Dict[str, Any]]:
+    def get_agent_context(self, agent_id: str) -> dict[str, Any] | None:
         """
         Retrieve agent's working context.
 
@@ -212,7 +212,7 @@ class ShortTermMemory:
             return None
 
     def store_agent_decision(
-        self, agent_id: str, decision: Dict[str, Any], ttl: int = 86400
+        self, agent_id: str, decision: dict[str, Any], ttl: int = 86400
     ) -> bool:
         """
         Store agent decision in STM.
@@ -245,7 +245,7 @@ class ShortTermMemory:
             logger.error(f"Failed to store agent decision: {e}", exc_info=True)
             return False
 
-    def get_agent_decisions(self, agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_agent_decisions(self, agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get recent agent decisions.
 
@@ -275,7 +275,7 @@ class ShortTermMemory:
 
     # Market State
 
-    def store_market_state(self, state: Dict[str, Any], ttl: int = 3600) -> bool:  # 1 hour
+    def store_market_state(self, state: dict[str, Any], ttl: int = 3600) -> bool:  # 1 hour
         """
         Store current market state.
 
@@ -298,7 +298,7 @@ class ShortTermMemory:
             logger.error(f"Failed to store market state: {e}", exc_info=True)
             return False
 
-    def get_market_state(self) -> Optional[Dict[str, Any]]:
+    def get_market_state(self) -> dict[str, Any] | None:
         """
         Get current market state.
 
@@ -360,7 +360,7 @@ class ShortTermMemory:
             logger.error(f"Failed to clear agent data: {e}", exc_info=True)
             return False
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """
         Get STM cache statistics.
 
@@ -390,7 +390,7 @@ class ShortTermMemory:
 
 
 # Global STM instance
-_stm: Optional[ShortTermMemory] = None
+_stm: ShortTermMemory | None = None
 
 
 def get_short_term_memory() -> ShortTermMemory:

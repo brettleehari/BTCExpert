@@ -79,7 +79,7 @@ class PostgresManager:
     def __init__(self):
         self._engine = None
         self._session_maker = None
-        self._pool: Optional[asyncpg.Pool] = None
+        self._pool: asyncpg.Pool | None = None
         self._connected = False
 
         # Resilience patterns
@@ -318,10 +318,10 @@ class PostgresManager:
         intelligence_type: str,
         importance: str,
         source: str,
-        data: Dict[str, Any],
-        symbol: Optional[str] = None,
-        meta_data: Optional[Dict[str, Any]] = None,
-        timestamp: Optional[datetime] = None,
+        data: dict[str, Any],
+        symbol: str | None = None,
+        meta_data: dict[str, Any] | None = None,
+        timestamp: datetime | None = None,
         validated: bool = False,
         routed_to_count: int = 0,
     ) -> bool:
@@ -371,7 +371,7 @@ class PostgresManager:
                     self.health.record_success()
 
                     logger.debug(
-                        f"Intelligence stored in LTM", id=intelligence_id, type=intelligence_type
+                        "Intelligence stored in LTM", id=intelligence_id, type=intelligence_type
                     )
 
                     return True
@@ -384,7 +384,7 @@ class PostgresManager:
     @retry_with_backoff(
         max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception)
     )
-    async def get_intelligence(self, intelligence_id: str) -> Optional[Dict[str, Any]]:
+    async def get_intelligence(self, intelligence_id: str) -> dict[str, Any] | None:
         """
         Retrieve intelligence record by ID.
 
@@ -437,14 +437,14 @@ class PostgresManager:
     )
     async def query_intelligence(
         self,
-        intelligence_type: Optional[str] = None,
-        symbol: Optional[str] = None,
-        importance: Optional[str] = None,
-        source: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        intelligence_type: str | None = None,
+        symbol: str | None = None,
+        importance: str | None = None,
+        source: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Query intelligence records with filters.
 
@@ -520,7 +520,7 @@ class PostgresManager:
             logger.error(f"Failed to query intelligence: {e}", exc_info=True)
             return []
 
-    async def get_intelligence_stats(self) -> Dict[str, Any]:
+    async def get_intelligence_stats(self) -> dict[str, Any]:
         """
         Get statistics about stored intelligence.
 
@@ -564,10 +564,10 @@ class PostgresManager:
         self,
         agent_id: str,
         agent_type: str,
-        capabilities: Dict[str, Any],
+        capabilities: dict[str, Any],
         status: str,
         registered_at: datetime,
-        meta_data: Optional[Dict[str, Any]] = None,
+        meta_data: dict[str, Any] | None = None,
     ) -> bool:
         """
         Store agent registration in long-term memory.
@@ -609,7 +609,7 @@ class PostgresManager:
         """Check if PostgreSQL is connected."""
         return self._connected
 
-    async def get_info(self) -> Dict[str, Any]:
+    async def get_info(self) -> dict[str, Any]:
         """Get PostgreSQL connection information."""
         if not self.is_connected():
             return {"connected": False}
@@ -642,13 +642,13 @@ class PostgresManager:
     )
     async def get_time_series_data(
         self,
-        symbol: Optional[str] = None,
-        intelligence_type: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        symbol: str | None = None,
+        intelligence_type: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         interval: str = "1 hour",
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get time-bucketed intelligence data using TimescaleDB.
 
@@ -730,10 +730,10 @@ class PostgresManager:
     )
     async def get_hourly_stats(
         self,
-        symbol: Optional[str] = None,
-        intelligence_type: Optional[str] = None,
+        symbol: str | None = None,
+        intelligence_type: str | None = None,
         hours_back: int = 24,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get pre-computed hourly statistics from continuous aggregate.
 
@@ -793,8 +793,8 @@ class PostgresManager:
         max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception)
     )
     async def get_daily_stats(
-        self, intelligence_type: Optional[str] = None, days_back: int = 30
-    ) -> List[Dict[str, Any]]:
+        self, intelligence_type: str | None = None, days_back: int = 30
+    ) -> list[dict[str, Any]]:
         """
         Get pre-computed daily statistics from continuous aggregate.
 
@@ -842,7 +842,7 @@ class PostgresManager:
             logger.error(f"Failed to get daily stats: {e}", exc_info=True)
             return []
 
-    async def get_compression_stats(self) -> Dict[str, Any]:
+    async def get_compression_stats(self) -> dict[str, Any]:
         """
         Get TimescaleDB compression statistics.
 
@@ -891,7 +891,7 @@ class PostgresManager:
             logger.error(f"Failed to get compression stats: {e}", exc_info=True)
             return {"timescaledb_enabled": False, "error": str(e)}
 
-    async def get_recent_trends(self, hours: int = 24, limit: int = 10) -> Dict[str, Any]:
+    async def get_recent_trends(self, hours: int = 24, limit: int = 10) -> dict[str, Any]:
         """
         Get trending symbols and intelligence types.
 
@@ -967,7 +967,7 @@ class PostgresManager:
 
 
 # Global PostgreSQL manager instance
-_postgres_manager: Optional[PostgresManager] = None
+_postgres_manager: PostgresManager | None = None
 
 
 def get_postgres_manager() -> PostgresManager:

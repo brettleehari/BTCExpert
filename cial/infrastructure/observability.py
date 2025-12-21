@@ -44,9 +44,9 @@ resource = Resource.create(
 )
 
 # Global tracer and meter providers
-_tracer_provider: Optional[TracerProvider] = None
-_meter_provider: Optional[MeterProvider] = None
-_prometheus_reader: Optional[PrometheusMetricReader] = None
+_tracer_provider: TracerProvider | None = None
+_meter_provider: MeterProvider | None = None
+_prometheus_reader: PrometheusMetricReader | None = None
 
 # Global tracer and meter
 tracer = None
@@ -293,7 +293,7 @@ system_info.info(
 # ============================================================================
 
 
-def trace_operation(operation_name: str = None, attributes: Dict[str, Any] = None):
+def trace_operation(operation_name: str = None, attributes: dict[str, Any] = None):
     """
     Decorator to add distributed tracing to a function.
 
@@ -481,7 +481,7 @@ def sync_resilience_metrics():
 # ============================================================================
 
 
-def get_grafana_dashboard_json() -> Dict[str, Any]:
+def get_grafana_dashboard_json() -> dict[str, Any]:
     """
     Get Grafana dashboard configuration for CIAL monitoring.
 

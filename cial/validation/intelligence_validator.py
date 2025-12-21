@@ -30,7 +30,7 @@ class ValidationRule:
         self.description = description
         self.weight = weight
 
-    def validate(self, message: IntelligenceMessage, context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, message: IntelligenceMessage, context: dict[str, Any]) -> dict[str, Any]:
         """
         Validate intelligence message.
 
@@ -55,7 +55,7 @@ class PriceDeviationRule(ValidationRule):
         )
         self.max_deviation_percent = max_deviation_percent
 
-    def validate(self, message: IntelligenceMessage, context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, message: IntelligenceMessage, context: dict[str, Any]) -> dict[str, Any]:
         """Validate price deviation."""
         if message.type != IntelligenceType.PRICE:
             return {"passed": True, "confidence": 1.0, "reason": "Not applicable"}
@@ -101,7 +101,7 @@ class CrossSourceValidationRule(ValidationRule):
         self.min_sources = min_sources
         self.max_variance_percent = max_variance_percent
 
-    def validate(self, message: IntelligenceMessage, context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, message: IntelligenceMessage, context: dict[str, Any]) -> dict[str, Any]:
         """Validate across multiple sources."""
         if message.type != IntelligenceType.PRICE:
             return {"passed": True, "confidence": 1.0, "reason": "Not applicable"}
@@ -157,7 +157,7 @@ class DataCompletenessRule(ValidationRule):
             IntelligenceType.TECHNICAL: ["indicator", "value"],
         }
 
-    def validate(self, message: IntelligenceMessage, context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, message: IntelligenceMessage, context: dict[str, Any]) -> dict[str, Any]:
         """Validate data completeness."""
         required = self.required_fields.get(message.type, [])
 
@@ -202,7 +202,7 @@ class SourceReliabilityRule(ValidationRule):
         )
         self.min_reliability = min_reliability
 
-    def validate(self, message: IntelligenceMessage, context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, message: IntelligenceMessage, context: dict[str, Any]) -> dict[str, Any]:
         """Validate source reliability."""
         source_reliability = context.get("source_reliability", 0.8)
 
@@ -229,7 +229,7 @@ class TimelinessRule(ValidationRule):
         super().__init__(rule_id="timeliness", description="Check data freshness", weight=0.7)
         self.max_age_seconds = max_age_seconds
 
-    def validate(self, message: IntelligenceMessage, context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, message: IntelligenceMessage, context: dict[str, Any]) -> dict[str, Any]:
         """Validate timeliness."""
         age_seconds = (datetime.utcnow() - message.timestamp).total_seconds()
 
@@ -265,7 +265,7 @@ class IntelligenceValidator:
         self.ltm = get_long_term_memory()
 
         # Initialize validation rules
-        self.rules: List[ValidationRule] = [
+        self.rules: list[ValidationRule] = [
             PriceDeviationRule(max_deviation_percent=20.0),
             CrossSourceValidationRule(min_sources=2, max_variance_percent=5.0),
             DataCompletenessRule(),
@@ -275,7 +275,7 @@ class IntelligenceValidator:
 
         logger.info(f"IntelligenceValidator initialized with {len(self.rules)} rules")
 
-    async def validate(self, message: IntelligenceMessage) -> Dict[str, Any]:
+    async def validate(self, message: IntelligenceMessage) -> dict[str, Any]:
         """
         Validate intelligence message.
 
@@ -353,7 +353,7 @@ class IntelligenceValidator:
 
         return validation_result
 
-    async def _build_context(self, message: IntelligenceMessage) -> Dict[str, Any]:
+    async def _build_context(self, message: IntelligenceMessage) -> dict[str, Any]:
         """
         Build validation context with historical and cross-source data.
 
@@ -417,7 +417,7 @@ class IntelligenceValidator:
         self.rules = [r for r in self.rules if r.rule_id != rule_id]
         logger.info(f"Removed validation rule: {rule_id}")
 
-    def get_rules(self) -> List[Dict[str, Any]]:
+    def get_rules(self) -> list[dict[str, Any]]:
         """Get list of validation rules."""
         return [
             {"rule_id": rule.rule_id, "description": rule.description, "weight": rule.weight}
@@ -426,7 +426,7 @@ class IntelligenceValidator:
 
 
 # Global validator instance
-_validator: Optional[IntelligenceValidator] = None
+_validator: IntelligenceValidator | None = None
 
 
 def get_intelligence_validator() -> IntelligenceValidator:

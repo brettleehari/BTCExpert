@@ -60,12 +60,12 @@ class WebSocketConnection:
         self.connection_id = connection_id
         self.client_ip = client_ip
         self.state = ConnectionState.CONNECTING
-        self.subscriptions: Set[str] = set()
+        self.subscriptions: set[str] = set()
         self.connected_at = datetime.utcnow()
         self.last_activity = datetime.utcnow()
         self.messages_sent = 0
         self.messages_received = 0
-        self.metadata: Dict[str, Any] = {}
+        self.metadata: dict[str, Any] = {}
 
     def update_activity(self):
         """Update last activity timestamp."""
@@ -81,7 +81,7 @@ class WebSocketConnection:
         self.subscriptions.discard(subscription)
         self.update_activity()
 
-    def get_connection_info(self) -> Dict[str, Any]:
+    def get_connection_info(self) -> dict[str, Any]:
         """Get connection information."""
         uptime = (datetime.utcnow() - self.connected_at).total_seconds()
 
@@ -112,9 +112,9 @@ class WebSocketManager:
     """
 
     def __init__(self):
-        self.connections: Dict[str, WebSocketConnection] = {}
-        self.redis_client: Optional[Any] = None
-        self.pubsub_task: Optional[asyncio.Task] = None
+        self.connections: dict[str, WebSocketConnection] = {}
+        self.redis_client: Any | None = None
+        self.pubsub_task: asyncio.Task | None = None
         self._running = False
 
         # Statistics
@@ -217,7 +217,7 @@ class WebSocketManager:
 
     @trace_operation("websocket_connect")
     async def connect(
-        self, websocket: WebSocket, client_ip: str, auth_token: Optional[str] = None
+        self, websocket: WebSocket, client_ip: str, auth_token: str | None = None
     ) -> str:
         """
         Accept and register a new WebSocket connection.
@@ -315,7 +315,7 @@ class WebSocketManager:
                 total_connections=self.stats["active_connections"],
             )
 
-    async def send_to_client(self, connection_id: str, message: Dict[str, Any]):
+    async def send_to_client(self, connection_id: str, message: dict[str, Any]):
         """
         Send message to a specific client.
 
@@ -350,7 +350,7 @@ class WebSocketManager:
             logger.error(f"Failed to send message to {connection_id}: {e}")
             await self.disconnect(connection_id)
 
-    async def broadcast(self, message: Dict[str, Any], subscription_filter: Optional[str] = None):
+    async def broadcast(self, message: dict[str, Any], subscription_filter: str | None = None):
         """
         Broadcast message to all connected clients.
 
@@ -393,7 +393,7 @@ class WebSocketManager:
             "cial_websocket_broadcasts_total", {"subscription": subscription_filter or "all"}
         )
 
-    async def broadcast_intelligence(self, channel: str, data: Dict[str, Any]):
+    async def broadcast_intelligence(self, channel: str, data: dict[str, Any]):
         """
         Broadcast intelligence update to subscribed clients.
 
@@ -412,7 +412,7 @@ class WebSocketManager:
 
         logger.debug(f"Broadcasted intelligence: {channel}")
 
-    async def handle_client_message(self, connection_id: str, message: Dict[str, Any]):
+    async def handle_client_message(self, connection_id: str, message: dict[str, Any]):
         """
         Handle incoming message from client.
 
@@ -476,17 +476,17 @@ class WebSocketManager:
         else:
             logger.warning(f"Unknown message type from {connection_id}: {message_type}")
 
-    def get_connection_info(self, connection_id: str) -> Optional[Dict[str, Any]]:
+    def get_connection_info(self, connection_id: str) -> dict[str, Any] | None:
         """Get connection information."""
         if connection_id in self.connections:
             return self.connections[connection_id].get_connection_info()
         return None
 
-    def get_all_connections(self) -> List[Dict[str, Any]]:
+    def get_all_connections(self) -> list[dict[str, Any]]:
         """Get information about all connections."""
         return [conn.get_connection_info() for conn in self.connections.values()]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get WebSocket manager statistics."""
         return {
             **self.stats,
@@ -503,7 +503,7 @@ class WebSocketManager:
 
 
 # Global WebSocket manager instance
-_websocket_manager: Optional[WebSocketManager] = None
+_websocket_manager: WebSocketManager | None = None
 
 
 async def get_websocket_manager() -> WebSocketManager:

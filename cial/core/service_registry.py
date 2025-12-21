@@ -22,8 +22,8 @@ class ServiceRegistry:
     """
 
     def __init__(self):
-        self._connectors: Dict[str, DataConnector] = {}
-        self._health_status: Dict[str, DataConnectorHealth] = {}
+        self._connectors: dict[str, DataConnector] = {}
+        self._health_status: dict[str, DataConnectorHealth] = {}
 
         logger.info("ServiceRegistry initialized")
 
@@ -31,10 +31,10 @@ class ServiceRegistry:
         self,
         connector_id: str,
         name: str,
-        intelligence_types: List[IntelligenceType],
+        intelligence_types: list[IntelligenceType],
         reliability_score: float = 1.0,
-        rate_limit: Optional[str] = None,
-        metadata: Optional[Dict] = None,
+        rate_limit: str | None = None,
+        metadata: dict | None = None,
     ) -> DataConnector:
         """
         Register a data connector.
@@ -102,19 +102,19 @@ class ServiceRegistry:
 
         return True
 
-    def get_connector(self, connector_id: str) -> Optional[DataConnector]:
+    def get_connector(self, connector_id: str) -> DataConnector | None:
         """Get connector by ID."""
         return self._connectors.get(connector_id)
 
-    def get_all_connectors(self) -> List[DataConnector]:
+    def get_all_connectors(self) -> list[DataConnector]:
         """Get all registered connectors."""
         return list(self._connectors.values())
 
-    def get_enabled_connectors(self) -> List[DataConnector]:
+    def get_enabled_connectors(self) -> list[DataConnector]:
         """Get only enabled connectors."""
         return [c for c in self._connectors.values() if c.enabled]
 
-    def get_connectors_by_type(self, intelligence_type: IntelligenceType) -> List[DataConnector]:
+    def get_connectors_by_type(self, intelligence_type: IntelligenceType) -> list[DataConnector]:
         """
         Get connectors that provide specific intelligence type.
 
@@ -197,15 +197,15 @@ class ServiceRegistry:
         if connector_id in self._connectors:
             self._connectors[connector_id].reliability_score = health.success_rate
 
-    def get_health_status(self, connector_id: str) -> Optional[DataConnectorHealth]:
+    def get_health_status(self, connector_id: str) -> DataConnectorHealth | None:
         """Get health status for a connector."""
         return self._health_status.get(connector_id)
 
-    def get_all_health_statuses(self) -> List[DataConnectorHealth]:
+    def get_all_health_statuses(self) -> list[DataConnectorHealth]:
         """Get health status for all connectors."""
         return list(self._health_status.values())
 
-    def get_unhealthy_connectors(self) -> List[str]:
+    def get_unhealthy_connectors(self) -> list[str]:
         """Get list of unhealthy connector IDs."""
         return [
             connector_id
@@ -213,7 +213,7 @@ class ServiceRegistry:
             if not health.healthy
         ]
 
-    def get_registry_stats(self) -> Dict:
+    def get_registry_stats(self) -> dict:
         """
         Get registry statistics.
 
@@ -241,7 +241,7 @@ class ServiceRegistry:
 
 
 # Global service registry instance
-_service_registry: Optional[ServiceRegistry] = None
+_service_registry: ServiceRegistry | None = None
 
 
 def get_service_registry() -> ServiceRegistry:

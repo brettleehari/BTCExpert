@@ -58,7 +58,7 @@ class CoinGeckoConnector:
 
         logger.info("CoinGeckoConnector initialized with resilience patterns")
 
-    async def get_price(self, symbol: str) -> Optional[PriceIntelligence]:
+    async def get_price(self, symbol: str) -> PriceIntelligence | None:
         """
         Get current price intelligence for a cryptocurrency.
 
@@ -120,7 +120,7 @@ class CoinGeckoConnector:
     @circuit_breaker("coingecko_api", fail_max=3, timeout_duration=30)
     @timeout(5.0)
     @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=10)
-    async def _fetch_price_with_resilience(self, symbol: str) -> Optional[PriceIntelligence]:
+    async def _fetch_price_with_resilience(self, symbol: str) -> PriceIntelligence | None:
         """
         Core price fetching logic with resilience decorators.
 
@@ -179,7 +179,7 @@ class CoinGeckoConnector:
 
             return price_intel
 
-    async def get_prices_batch(self, symbols: List[str]) -> Dict[str, PriceIntelligence]:
+    async def get_prices_batch(self, symbols: list[str]) -> dict[str, PriceIntelligence]:
         """
         Get prices for multiple cryptocurrencies in batch.
 
@@ -218,8 +218,8 @@ class CoinGeckoConnector:
     @timeout(8.0)  # Longer timeout for batch requests
     @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=10)
     async def _fetch_prices_batch_with_resilience(
-        self, symbols: List[str]
-    ) -> Dict[str, PriceIntelligence]:
+        self, symbols: list[str]
+    ) -> dict[str, PriceIntelligence]:
         """Core batch price fetching logic with resilience decorators."""
         # Map symbols to CoinGecko IDs
         coin_ids = [self._symbol_to_id(s) for s in symbols]
@@ -326,7 +326,7 @@ class CoinGeckoConnector:
 
 
 # Global connector instance
-_coingecko_connector: Optional[CoinGeckoConnector] = None
+_coingecko_connector: CoinGeckoConnector | None = None
 
 
 def get_coingecko_connector() -> CoinGeckoConnector:

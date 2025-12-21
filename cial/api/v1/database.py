@@ -19,7 +19,7 @@ router = APIRouter()
 
 @router.post("/optimize/indexes")
 @trace_operation("db_create_indexes")
-async def create_indexes() -> VersionedResponse[Dict[str, Any]]:
+async def create_indexes() -> VersionedResponse[dict[str, Any]]:
     """
     Create performance indexes on database tables.
 
@@ -53,7 +53,7 @@ async def create_indexes() -> VersionedResponse[Dict[str, Any]]:
 
 @router.post("/optimize/materialized-views")
 @trace_operation("db_create_materialized_views")
-async def create_materialized_views() -> VersionedResponse[Dict[str, Any]]:
+async def create_materialized_views() -> VersionedResponse[dict[str, Any]]:
     """
     Create materialized views for expensive queries.
 
@@ -90,7 +90,7 @@ async def create_materialized_views() -> VersionedResponse[Dict[str, Any]]:
 @trace_operation("db_refresh_materialized_views")
 async def refresh_materialized_views(
     concurrent: bool = Query(True, description="Refresh concurrently (doesn't block reads)")
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Refresh materialized views with latest data.
 
@@ -124,10 +124,10 @@ async def refresh_materialized_views(
 @router.post("/optimize/vacuum")
 @trace_operation("db_vacuum_analyze")
 async def vacuum_analyze(
-    tables: Optional[List[str]] = Query(
+    tables: list[str] | None = Query(
         None, description="Specific tables to vacuum (None = all tables)"
     )
-) -> VersionedResponse[Dict[str, str]]:
+) -> VersionedResponse[dict[str, str]]:
     """
     Run VACUUM ANALYZE on tables.
 
@@ -164,7 +164,7 @@ async def vacuum_analyze(
 
 @router.post("/analyze/query")
 @trace_operation("db_analyze_query")
-async def analyze_query(query: str) -> VersionedResponse[Dict[str, Any]]:
+async def analyze_query(query: str) -> VersionedResponse[dict[str, Any]]:
     """
     Analyze query performance using EXPLAIN ANALYZE.
 
@@ -222,7 +222,7 @@ async def analyze_query(query: str) -> VersionedResponse[Dict[str, Any]]:
 
 @router.get("/stats/indexes")
 @trace_operation("db_index_usage_stats")
-async def get_index_usage() -> VersionedResponse[List[Dict[str, Any]]]:
+async def get_index_usage() -> VersionedResponse[list[dict[str, Any]]]:
     """
     Get index usage statistics.
 
@@ -257,7 +257,7 @@ async def get_index_usage() -> VersionedResponse[List[Dict[str, Any]]]:
 
 @router.get("/stats/tables")
 @trace_operation("db_table_stats")
-async def get_table_stats() -> VersionedResponse[List[Dict[str, Any]]]:
+async def get_table_stats() -> VersionedResponse[list[dict[str, Any]]]:
     """
     Get table statistics.
 
@@ -294,7 +294,7 @@ async def get_table_stats() -> VersionedResponse[List[Dict[str, Any]]]:
 @trace_operation("db_query_stats")
 async def get_query_stats(
     min_duration_ms: float = Query(0, description="Only show queries slower than this (ms)")
-) -> VersionedResponse[Dict[str, Any]]:
+) -> VersionedResponse[dict[str, Any]]:
     """
     Get query performance statistics.
 
@@ -341,7 +341,7 @@ async def get_query_stats(
 
 
 @router.get("/health")
-async def database_health() -> VersionedResponse[Dict[str, Any]]:
+async def database_health() -> VersionedResponse[dict[str, Any]]:
     """
     Check database optimization health.
 

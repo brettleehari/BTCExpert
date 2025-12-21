@@ -36,7 +36,7 @@ class DatabaseOptimizer:
             postgres_manager: PostgresManager instance
         """
         self.postgres_manager = postgres_manager
-        self.query_stats: Dict[str, Dict[str, Any]] = {}
+        self.query_stats: dict[str, dict[str, Any]] = {}
 
     @trace_operation("db_create_indexes")
     async def create_performance_indexes(self):
@@ -292,7 +292,7 @@ class DatabaseOptimizer:
         return refreshed
 
     @trace_operation("db_analyze_query")
-    async def analyze_query(self, query: str) -> Dict[str, Any]:
+    async def analyze_query(self, query: str) -> dict[str, Any]:
         """
         Analyze query performance using EXPLAIN ANALYZE.
 
@@ -348,7 +348,7 @@ class DatabaseOptimizer:
             return {"error": str(e)}
 
     @trace_operation("db_get_index_usage")
-    async def get_index_usage_stats(self) -> List[Dict[str, Any]]:
+    async def get_index_usage_stats(self) -> list[dict[str, Any]]:
         """
         Get index usage statistics.
 
@@ -378,7 +378,7 @@ class DatabaseOptimizer:
             return []
 
     @trace_operation("db_get_table_stats")
-    async def get_table_stats(self) -> List[Dict[str, Any]]:
+    async def get_table_stats(self) -> list[dict[str, Any]]:
         """
         Get table statistics including size and row counts.
 
@@ -416,7 +416,7 @@ class DatabaseOptimizer:
             return []
 
     @trace_operation("db_vacuum_analyze")
-    async def vacuum_analyze_tables(self, tables: Optional[List[str]] = None):
+    async def vacuum_analyze_tables(self, tables: list[str] | None = None):
         """
         Run VACUUM ANALYZE on tables to update statistics and reclaim space.
 
@@ -441,7 +441,7 @@ class DatabaseOptimizer:
 
         logger.info("VACUUM ANALYZE complete")
 
-    def get_slow_queries(self, min_duration_ms: float = 1000) -> List[Dict[str, Any]]:
+    def get_slow_queries(self, min_duration_ms: float = 1000) -> list[dict[str, Any]]:
         """
         Get queries slower than threshold.
 
@@ -459,7 +459,7 @@ class DatabaseOptimizer:
 
         return sorted(slow_queries, key=lambda x: x["avg_time_ms"], reverse=True)
 
-    def get_query_stats_summary(self) -> Dict[str, Any]:
+    def get_query_stats_summary(self) -> dict[str, Any]:
         """
         Get summary of query statistics.
 
@@ -482,7 +482,7 @@ class DatabaseOptimizer:
 
 
 # Global optimizer instance
-_db_optimizer: Optional[DatabaseOptimizer] = None
+_db_optimizer: DatabaseOptimizer | None = None
 
 
 async def get_database_optimizer() -> DatabaseOptimizer:

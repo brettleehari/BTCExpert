@@ -22,8 +22,8 @@ class RedisManager:
     """
 
     def __init__(self):
-        self._sync_client: Optional[redis.Redis] = None
-        self._async_client: Optional[AsyncRedis] = None
+        self._sync_client: redis.Redis | None = None
+        self._async_client: AsyncRedis | None = None
         self._connected = False
 
     def connect(self):
@@ -113,7 +113,7 @@ class RedisManager:
             pass
         return False
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get Redis server information."""
         if not self.is_connected():
             return {"connected": False}
@@ -130,7 +130,7 @@ class RedisManager:
 
 
 # Global Redis manager instance
-_redis_manager: Optional[RedisManager] = None
+_redis_manager: RedisManager | None = None
 
 
 def get_redis_manager() -> RedisManager:

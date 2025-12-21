@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
     # CORS Settings
-    ALLOWED_ORIGINS: List[str] = Field(
+    ALLOWED_ORIGINS: list[str] = Field(
         default=["http://localhost:3000", "http://localhost:8000"],
         validation_alias="ALLOWED_ORIGINS",
         description="Allowed CORS origins",
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # Redis Configuration (Short-Term Memory)
     # Can use REDIS_URL (full connection string) or individual fields
-    REDIS_URL: Optional[str] = Field(default=None, validation_alias="REDIS_URL")
+    REDIS_URL: str | None = Field(default=None, validation_alias="REDIS_URL")
     REDIS_HOST: str = Field(default="localhost", validation_alias="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT", ge=1, le=65535)
     REDIS_DB: int = Field(default=0, validation_alias="REDIS_DB", ge=0, le=15)
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 
     # PostgreSQL Configuration (Long-Term Memory)
     # Can use DATABASE_URL (full connection string) or individual fields
-    DATABASE_URL: Optional[str] = Field(default=None, validation_alias="DATABASE_URL")
+    DATABASE_URL: str | None = Field(default=None, validation_alias="DATABASE_URL")
     POSTGRES_HOST: str = Field(default="localhost", validation_alias="POSTGRES_HOST")
     POSTGRES_PORT: int = Field(default=5432, validation_alias="POSTGRES_PORT", ge=1, le=65535)
     POSTGRES_DB: str = Field(default="cial_ltm", validation_alias="POSTGRES_DB")

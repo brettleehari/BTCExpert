@@ -55,7 +55,7 @@ class LongTermMemory:
             )
 
             if success:
-                logger.debug(f"Intelligence stored in LTM", id=message.id, type=message.type.value)
+                logger.debug("Intelligence stored in LTM", id=message.id, type=message.type.value)
 
             return success
 
@@ -63,7 +63,7 @@ class LongTermMemory:
             logger.error(f"Failed to store in LTM: {e}", exc_info=True)
             return False
 
-    async def get_intelligence(self, intelligence_id: str) -> Optional[Dict[str, Any]]:
+    async def get_intelligence(self, intelligence_id: str) -> dict[str, Any] | None:
         """
         Retrieve intelligence by ID.
 
@@ -78,10 +78,10 @@ class LongTermMemory:
     async def get_historical_prices(
         self,
         symbol: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get historical price data for a symbol.
 
@@ -102,7 +102,7 @@ class LongTermMemory:
             limit=limit,
         )
 
-    async def get_price_trends(self, symbol: str, days: int = 7) -> Dict[str, Any]:
+    async def get_price_trends(self, symbol: str, days: int = 7) -> dict[str, Any]:
         """
         Analyze price trends over a time period.
 
@@ -149,8 +149,8 @@ class LongTermMemory:
         }
 
     async def get_sentiment_history(
-        self, symbol: Optional[str] = None, days: int = 7
-    ) -> List[Dict[str, Any]]:
+        self, symbol: str | None = None, days: int = 7
+    ) -> list[dict[str, Any]]:
         """
         Get historical sentiment data.
 
@@ -167,8 +167,8 @@ class LongTermMemory:
         )
 
     async def get_whale_movements(
-        self, symbol: Optional[str] = None, min_amount_usd: float = 1000000, days: int = 30  # $1M+
-    ) -> List[Dict[str, Any]]:
+        self, symbol: str | None = None, min_amount_usd: float = 1000000, days: int = 30  # $1M+
+    ) -> list[dict[str, Any]]:
         """
         Get whale movement history.
 
@@ -192,7 +192,7 @@ class LongTermMemory:
 
         return filtered
 
-    async def get_critical_events(self, days: int = 7, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_critical_events(self, days: int = 7, limit: int = 100) -> list[dict[str, Any]]:
         """
         Get recent critical intelligence events.
 
@@ -208,7 +208,7 @@ class LongTermMemory:
             importance="CRITICAL", start_time=start_time, limit=limit
         )
 
-    async def get_source_analytics(self, source: str) -> Dict[str, Any]:
+    async def get_source_analytics(self, source: str) -> dict[str, Any]:
         """
         Get analytics for a specific data source.
 
@@ -244,8 +244,8 @@ class LongTermMemory:
         }
 
     async def search_intelligence(
-        self, query: str, intelligence_type: Optional[str] = None, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+        self, query: str, intelligence_type: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """
         Search intelligence records (full-text search).
 
@@ -279,7 +279,7 @@ class LongTermMemory:
 
         return matches
 
-    async def get_ltm_stats(self) -> Dict[str, Any]:
+    async def get_ltm_stats(self) -> dict[str, Any]:
         """
         Get Long-Term Memory statistics.
 
@@ -310,7 +310,7 @@ class LongTermMemory:
 
 
 # Global LTM instance
-_ltm: Optional[LongTermMemory] = None
+_ltm: LongTermMemory | None = None
 
 
 def get_long_term_memory() -> LongTermMemory:

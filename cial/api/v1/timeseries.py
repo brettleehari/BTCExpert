@@ -28,7 +28,7 @@ class TimeSeriesDataPoint(BaseModel):
 
     bucket: datetime
     type: str
-    symbol: Optional[str] = None
+    symbol: str | None = None
     count: int
     unique_sources: int
     avg_routes: float
@@ -40,7 +40,7 @@ class HourlyStats(BaseModel):
 
     hour: datetime
     type: str
-    symbol: Optional[str] = None
+    symbol: str | None = None
     message_count: int
     unique_sources: int
     total_routes: int
@@ -86,9 +86,9 @@ class TrendsResponse(BaseModel):
     """Recent trends response."""
 
     period_hours: int
-    top_symbols: List[TrendingSymbol]
-    top_types: List[TrendingType]
-    volume_timeline: List[VolumeDataPoint]
+    top_symbols: list[TrendingSymbol]
+    top_types: list[TrendingType]
+    volume_timeline: list[VolumeDataPoint]
 
 
 class CompressionStats(BaseModel):
@@ -113,9 +113,9 @@ class CompressionInfoResponse(BaseModel):
     """Compression information response."""
 
     timescaledb_enabled: bool
-    compression_stats: Optional[List[CompressionStats]] = None
-    chunk_stats: Optional[ChunkStats] = None
-    error: Optional[str] = None
+    compression_stats: list[CompressionStats] | None = None
+    chunk_stats: ChunkStats | None = None
+    error: str | None = None
 
 
 # ============================================================================
@@ -125,7 +125,7 @@ class CompressionInfoResponse(BaseModel):
 
 @router.get(
     "/timeseries/data",
-    response_model=VersionedResponse[List[TimeSeriesDataPoint]],
+    response_model=VersionedResponse[list[TimeSeriesDataPoint]],
     summary="Get time-bucketed intelligence data",
     description="""
     Get time-series intelligence data with automatic bucketing.
@@ -143,10 +143,10 @@ class CompressionInfoResponse(BaseModel):
     """,
 )
 async def get_time_series_data(
-    symbol: Optional[str] = Query(None, description="Filter by cryptocurrency symbol (e.g., BTC)"),
-    type: Optional[str] = Query(None, description="Filter by intelligence type (e.g., PRICE)"),
-    start_time: Optional[datetime] = Query(None, description="Start of time range (ISO 8601)"),
-    end_time: Optional[datetime] = Query(None, description="End of time range (ISO 8601)"),
+    symbol: str | None = Query(None, description="Filter by cryptocurrency symbol (e.g., BTC)"),
+    type: str | None = Query(None, description="Filter by intelligence type (e.g., PRICE)"),
+    start_time: datetime | None = Query(None, description="Start of time range (ISO 8601)"),
+    end_time: datetime | None = Query(None, description="End of time range (ISO 8601)"),
     interval: str = Query(
         "1 hour", description="Time bucket interval (e.g., '15 minutes', '1 hour', '1 day')"
     ),
@@ -186,12 +186,12 @@ async def get_time_series_data(
 
     except Exception as e:
         logger.error(f"Failed to get time-series data: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get(
     "/timeseries/hourly",
-    response_model=VersionedResponse[List[HourlyStats]],
+    response_model=VersionedResponse[list[HourlyStats]],
     summary="Get pre-computed hourly statistics",
     description="""
     Get hourly intelligence statistics from continuous aggregates.
@@ -206,8 +206,8 @@ async def get_time_series_data(
     """,
 )
 async def get_hourly_stats(
-    symbol: Optional[str] = Query(None, description="Filter by symbol"),
-    type: Optional[str] = Query(None, description="Filter by intelligence type"),
+    symbol: str | None = Query(None, description="Filter by symbol"),
+    type: str | None = Query(None, description="Filter by intelligence type"),
     hours_back: int = Query(
         24, ge=1, le=720, description="Number of hours to look back (max 30 days)"
     ),
@@ -234,12 +234,12 @@ async def get_hourly_stats(
 
     except Exception as e:
         logger.error(f"Failed to get hourly stats: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get(
     "/timeseries/daily",
-    response_model=VersionedResponse[List[DailyStats]],
+    response_model=VersionedResponse[list[DailyStats]],
     summary="Get pre-computed daily statistics",
     description="""
     Get daily intelligence statistics from continuous aggregates.
@@ -254,7 +254,7 @@ async def get_hourly_stats(
     """,
 )
 async def get_daily_stats(
-    type: Optional[str] = Query(None, description="Filter by intelligence type"),
+    type: str | None = Query(None, description="Filter by intelligence type"),
     days_back: int = Query(
         30, ge=1, le=365, description="Number of days to look back (max 1 year)"
     ),
@@ -278,7 +278,7 @@ async def get_daily_stats(
 
     except Exception as e:
         logger.error(f"Failed to get daily stats: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get(
@@ -322,7 +322,7 @@ async def get_recent_trends(
 
     except Exception as e:
         logger.error(f"Failed to get trends: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get(
@@ -364,7 +364,7 @@ async def get_compression_stats():
 
     except Exception as e:
         logger.error(f"Failed to get compression stats: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -433,4 +433,4 @@ async def get_timescaledb_info():
 
     except Exception as e:
         logger.error(f"Failed to get TimescaleDB info: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

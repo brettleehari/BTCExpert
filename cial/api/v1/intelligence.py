@@ -33,7 +33,7 @@ from infrastructure.logging_config import logger
 router = APIRouter()
 
 
-def _get_request_metadata(request: Request, start_time: float) -> Dict[str, Any]:
+def _get_request_metadata(request: Request, start_time: float) -> dict[str, Any]:
     """Build metadata for API responses"""
     return {
         "request_id": str(uuid.uuid4()),
@@ -47,7 +47,7 @@ def _get_request_metadata(request: Request, start_time: float) -> Dict[str, Any]
 async def get_intelligence_stream(
     stream_type: str = Path(..., description="Intelligence stream type"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum messages to return"),
-    symbol: Optional[str] = Query(None, description="Filter by cryptocurrency symbol"),
+    symbol: str | None = Query(None, description="Filter by cryptocurrency symbol"),
 ):
     """
     Get intelligence stream data.
@@ -67,11 +67,11 @@ async def get_intelligence_stream(
     # Map stream_type string to enum
     try:
         intel_type = IntelligenceType(stream_type)
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid stream type: {stream_type}. Valid types: price, sentiment, whale, technical, regulatory, defi, onchain",
-        )
+        ) from e
 
     broker = get_intelligence_broker()
     messages = broker.get_recent_intelligence(
@@ -179,7 +179,7 @@ async def get_live_price(
         raise
     except Exception as e:
         logger.error(f"Failed to fetch live price: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch live price")
+        raise HTTPException(status_code=500, detail="Failed to fetch live price") from e
 
 
 @router.post("/price/batch")
@@ -241,7 +241,7 @@ async def get_batch_prices(
         raise
     except Exception as e:
         logger.error(f"Failed to fetch batch prices: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch batch prices")
+        raise HTTPException(status_code=500, detail="Failed to fetch batch prices") from e
 
 
 @router.get("/sentiment/{symbol}/current")
@@ -272,9 +272,9 @@ async def get_current_sentiment(symbol: str = Path(..., description="Cryptocurre
 async def ingest_intelligence(
     intelligence_type: IntelligenceType = Body(..., description="Type of intelligence"),
     source: str = Body(..., description="Data source identifier"),
-    data: Dict[str, Any] = Body(..., description="Intelligence data payload"),
-    symbol: Optional[str] = Body(None, description="Cryptocurrency symbol"),
-    metadata: Optional[Dict[str, Any]] = Body(None, description="Additional metadata"),
+    data: dict[str, Any] = Body(..., description="Intelligence data payload"),
+    symbol: str | None = Body(None, description="Cryptocurrency symbol"),
+    metadata: dict[str, Any] | None = Body(None, description="Additional metadata"),
 ):
     """
     Ingest raw intelligence data into CIAL pipeline.
@@ -300,7 +300,7 @@ async def ingest_intelligence(
 
     except Exception as e:
         logger.error(f"Failed to ingest intelligence: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to process intelligence")
+        raise HTTPException(status_code=500, detail="Failed to process intelligence") from e
 
 
 @router.get("/stats")
@@ -348,7 +348,7 @@ async def get_intelligence_stats(request: Request):
 @router.get("/connectors")
 async def list_connectors(
     request: Request,
-    intelligence_type: Optional[IntelligenceType] = Query(
+    intelligence_type: IntelligenceType | None = Query(
         None, description="Filter by intelligence type"
     ),
     enabled_only: bool = Query(True, description="Only show enabled connectors"),

@@ -53,10 +53,10 @@ class VersionedResponse(BaseModel, Generic[T]):
     )
     status: ResponseStatus = Field(default=ResponseStatus.SUCCESS, description="Response status")
     data: T = Field(description="Response payload")
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Response metadata (timestamp, request_id, etc.)"
     )
-    errors: Optional[List[Dict[str, Any]]] = Field(
+    errors: list[dict[str, Any]] | None = Field(
         default=None, description="Error details if status is error or partial"
     )
 
@@ -96,9 +96,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
     version: APIVersion = Field(default=APIVersion.V1, description="API version")
     status: ResponseStatus = Field(default=ResponseStatus.SUCCESS, description="Response status")
-    data: List[T] = Field(description="List of items")
-    pagination: Dict[str, int] = Field(description="Pagination metadata")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Response metadata")
+    data: list[T] = Field(description="List of items")
+    pagination: dict[str, int] = Field(description="Pagination metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Response metadata")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -143,8 +143,8 @@ class ErrorResponse(BaseModel):
     status: ResponseStatus = Field(
         default=ResponseStatus.ERROR, description="Always 'error' for error responses"
     )
-    error: Dict[str, Any] = Field(description="Error details")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Response metadata")
+    error: dict[str, Any] = Field(description="Error details")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Response metadata")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -166,7 +166,7 @@ class ErrorResponse(BaseModel):
 
 
 def success_response(
-    data: Any, version: APIVersion = APIVersion.V1, metadata: Optional[Dict[str, Any]] = None
+    data: Any, version: APIVersion = APIVersion.V1, metadata: dict[str, Any] | None = None
 ) -> VersionedResponse:
     """
     Build a successful versioned response.
@@ -190,9 +190,9 @@ def success_response(
 def error_response(
     error_code: str,
     error_message: str,
-    details: Optional[Dict[str, Any]] = None,
+    details: dict[str, Any] | None = None,
     version: APIVersion = APIVersion.V1,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> ErrorResponse:
     """
     Build an error response.
@@ -219,12 +219,12 @@ def error_response(
 
 
 def paginated_response(
-    data: List[Any],
+    data: list[Any],
     total: int,
     page: int,
     page_size: int,
     version: APIVersion = APIVersion.V1,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> PaginatedResponse:
     """
     Build a paginated response.

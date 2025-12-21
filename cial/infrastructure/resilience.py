@@ -81,11 +81,11 @@ class CircuitBreakerConfig:
 
 
 # Global circuit breakers registry
-_circuit_breakers: Dict[str, pybreaker.CircuitBreaker] = {}
+_circuit_breakers: dict[str, pybreaker.CircuitBreaker] = {}
 
 
 def get_circuit_breaker(
-    name: str, config: Optional[CircuitBreakerConfig] = None
+    name: str, config: CircuitBreakerConfig | None = None
 ) -> pybreaker.CircuitBreaker:
     """
     Get or create a circuit breaker.
@@ -268,9 +268,9 @@ def timeout(seconds: float):
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 logger.error(f"Function timeout: {func.__name__}", timeout_seconds=seconds)
-                raise TimeoutError(f"{func.__name__} timed out after {seconds}s")
+                raise TimeoutError(f"{func.__name__} timed out after {seconds}s") from e
 
         return wrapper
 
@@ -304,7 +304,7 @@ class Bulkhead:
         - Enables fine-grained resource control per service
     """
 
-    def __init__(self, max_concurrent: int, name: str = "default", timeout: Optional[float] = None):
+    def __init__(self, max_concurrent: int, name: str = "default", timeout: float | None = None):
         """
         Create a bulkhead.
 
@@ -346,7 +346,7 @@ class Bulkhead:
                 active=self._active_count,
                 rejected=self._rejected_requests,
             )
-            raise TimeoutError(f"Bulkhead {self.name} timeout - too many concurrent operations")
+            raise TimeoutError(f"Bulkhead {self.name} timeout - too many concurrent operations") from None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release slot"""
@@ -354,7 +354,7 @@ class Bulkhead:
         self.semaphore.release()
         logger.debug(f"Bulkhead slot released: {self.name}", active=self._active_count)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get bulkhead statistics"""
         return {
             "name": self.name,
@@ -367,10 +367,10 @@ class Bulkhead:
 
 
 # Global bulkheads registry
-_bulkheads: Dict[str, Bulkhead] = {}
+_bulkheads: dict[str, Bulkhead] = {}
 
 
-def get_bulkhead(name: str, max_concurrent: int = 10, timeout: Optional[float] = None) -> Bulkhead:
+def get_bulkhead(name: str, max_concurrent: int = 10, timeout: float | None = None) -> Bulkhead:
     """
     Get or create a bulkhead.
 
@@ -449,9 +449,9 @@ class HealthCheck:
         self.total_requests = 0
 
         # Timing
-        self.last_success: Optional[datetime] = None
-        self.last_failure: Optional[datetime] = None
-        self.last_check: Optional[datetime] = None
+        self.last_success: datetime | None = None
+        self.last_failure: datetime | None = None
+        self.last_check: datetime | None = None
 
         # Response times (for SLA monitoring)
         self.avg_response_time_ms: float = 0.0
@@ -520,7 +520,7 @@ class HealthCheck:
         """Check if service is healthy"""
         return self.get_status() == HealthStatus.HEALTHY
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get detailed health statistics"""
         success_rate = self.success_count / self.total_requests if self.total_requests > 0 else 0.0
 
@@ -551,7 +551,7 @@ class HealthCheck:
 
 
 # Global health checks registry
-_health_checks: Dict[str, HealthCheck] = {}
+_health_checks: dict[str, HealthCheck] = {}
 
 
 def get_health_check(name: str, threshold_success_rate: float = 0.8) -> HealthCheck:
@@ -584,7 +584,7 @@ def get_health_check(name: str, threshold_success_rate: float = 0.8) -> HealthCh
 # ============================================================================
 
 
-def get_resilience_stats() -> Dict[str, Any]:
+def get_resilience_stats() -> dict[str, Any]:
     """
     Get statistics for all resilience components.
 

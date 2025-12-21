@@ -126,10 +126,10 @@ class CacheManager:
         self.warming_interval = 300  # 5 minutes
 
         # Background warming task
-        self._warming_task: Optional[asyncio.Task] = None
+        self._warming_task: asyncio.Task | None = None
 
     @trace_operation("cache_get")
-    async def get(self, key: str, cache_tier: str = "both") -> Optional[Any]:
+    async def get(self, key: str, cache_tier: str = "both") -> Any | None:
         """
         Get value from cache with multi-tier support.
 
@@ -186,7 +186,7 @@ class CacheManager:
 
     @trace_operation("cache_set")
     async def set(
-        self, key: str, value: Any, ttl: Optional[int] = None, cache_tier: str = "both"
+        self, key: str, value: Any, ttl: int | None = None, cache_tier: str = "both"
     ) -> bool:
         """
         Set value in cache with multi-tier support.
@@ -300,7 +300,7 @@ class CacheManager:
             return 0
 
     @trace_operation("cache_warm")
-    async def warm_cache(self, symbols: Optional[List[str]] = None):
+    async def warm_cache(self, symbols: list[str] | None = None):
         """
         Pre-populate cache with frequently accessed data.
 
@@ -378,7 +378,7 @@ class CacheManager:
                 pass
             logger.info("Cache warming task stopped")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get cache statistics.
 
@@ -402,7 +402,7 @@ class CacheManager:
 
 
 # Global cache manager instance
-_cache_manager: Optional[CacheManager] = None
+_cache_manager: CacheManager | None = None
 
 
 def get_cache_manager() -> CacheManager:
@@ -463,7 +463,7 @@ def cached(
     ttl: int = 300,
     key_prefix: str = "cached",
     cache_tier: str = "both",
-    key_builder: Optional[Callable] = None,
+    key_builder: Callable | None = None,
 ):
     """
     Decorator for caching function results with cache-aside pattern.
@@ -551,7 +551,7 @@ class CacheInvalidationStrategy:
         await cache_manager.delete(key)
 
     @staticmethod
-    async def invalidate_related_keys(base_key: str, related_patterns: List[str]):
+    async def invalidate_related_keys(base_key: str, related_patterns: list[str]):
         """
         Invalidate base key and all related keys.
 

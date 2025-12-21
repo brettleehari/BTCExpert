@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-def discover_modules(package_path: Path) -> List[str]:
+def discover_modules(package_path: Path) -> list[str]:
     """
     Discover all Python modules in the package.
 
@@ -55,7 +55,7 @@ def discover_modules(package_path: Path) -> List[str]:
     return sorted(modules)
 
 
-def test_import(module_name: str) -> Tuple[bool, str]:
+def test_import(module_name: str) -> tuple[bool, str]:
     """
     Test if a module can be imported successfully.
 

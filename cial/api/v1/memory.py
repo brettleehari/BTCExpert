@@ -36,8 +36,8 @@ async def get_agent_context(agent_id: str = Path(..., description="Agent identif
 @router.post("/stm/{agent_id}/context")
 async def store_agent_context(
     agent_id: str = Path(..., description="Agent identifier"),
-    context: Dict[str, Any] = Body(..., description="Context data to store"),
-    ttl: Optional[int] = Body(86400, description="Time-to-live in seconds"),
+    context: dict[str, Any] = Body(..., description="Context data to store"),
+    ttl: int | None = Body(86400, description="Time-to-live in seconds"),
 ):
     """
     Store agent's working context in short-term memory.
@@ -67,8 +67,8 @@ async def store_agent_context(
 @router.post("/stm/{agent_id}/decision")
 async def store_agent_decision(
     agent_id: str = Path(..., description="Agent identifier"),
-    decision: Dict[str, Any] = Body(..., description="Decision data"),
-    ttl: Optional[int] = Body(86400, description="Time-to-live in seconds"),
+    decision: dict[str, Any] = Body(..., description="Decision data"),
+    ttl: int | None = Body(86400, description="Time-to-live in seconds"),
 ):
     """
     Store agent decision in short-term memory.
@@ -258,7 +258,7 @@ async def get_price_trends(symbol: str, days: int = 7):
 
 
 @router.get("/ltm/sentiment/history")
-async def get_sentiment_history(symbol: Optional[str] = None, days: int = 7):
+async def get_sentiment_history(symbol: str | None = None, days: int = 7):
     """
     Get historical sentiment data.
 
@@ -282,7 +282,7 @@ async def get_sentiment_history(symbol: Optional[str] = None, days: int = 7):
 
 @router.get("/ltm/whale/movements")
 async def get_whale_movements(
-    symbol: Optional[str] = None, min_amount_usd: float = 1000000, days: int = 30
+    symbol: str | None = None, min_amount_usd: float = 1000000, days: int = 30
 ):
     """
     Get whale movement history.
@@ -325,7 +325,7 @@ async def get_critical_events(days: int = 7):
 
 
 @router.get("/ltm/search")
-async def search_ltm(query: str, intelligence_type: Optional[str] = None, limit: int = 50):
+async def search_ltm(query: str, intelligence_type: str | None = None, limit: int = 50):
     """
     Search intelligence in Long-Term Memory.
 
