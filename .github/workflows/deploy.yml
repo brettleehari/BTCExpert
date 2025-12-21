@@ -336,21 +336,27 @@ jobs:
 
     steps:
       - name: Send Slack notification
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
         run: |
-          STATUS="${{ needs.build.result }}"
+          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "⚠️  SLACK_WEBHOOK_URL not configured - skipping notification"
+            exit 0
+          fi
+
+          STATUS="success"
           COLOR="good"
-          if [ "$STATUS" != "success" ]; then
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            STATUS="failed"
             COLOR="danger"
           fi
 
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          curl -X POST "$WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
             -d '{
               "attachments": [{
                 "color": "'$COLOR'",
-                "title": "CIAL Build & Test",
-                "text": "Build status: '$STATUS'",
+                "title": "CIAL Deployment",
+                "text": "Deployment to production: '$STATUS'",
                 "fields": [
                   {"title": "Branch", "value": "'"${{ github.ref_name }}"'", "short": true},
                   {"title": "Commit", "value": "'"${{ github.sha }}"'", "short": true}
