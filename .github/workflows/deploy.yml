@@ -331,7 +331,7 @@ jobs:
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs: [deploy-railway, deploy-gcp, deploy-digitalocean, deploy-render]
+    needs:  [build]
     if: always() && github.ref == 'refs/heads/main'
 
     steps:
