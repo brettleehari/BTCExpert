@@ -5,16 +5,18 @@ Data models for intelligence messages, agents, and API requests/responses
 Version: 2.0 - Migrated to Pydantic V2
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Literal, Optional
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Enums
 
+
 class IntelligenceImportance(str, Enum):
     """Intelligence importance classification"""
+
     CRITICAL = "critical"
     NORMAL = "normal"
     LOW = "low"
@@ -22,6 +24,7 @@ class IntelligenceImportance(str, Enum):
 
 class IntelligenceType(str, Enum):
     """Types of intelligence data"""
+
     PRICE = "price"
     SENTIMENT = "sentiment"
     WHALE = "whale"
@@ -33,6 +36,7 @@ class IntelligenceType(str, Enum):
 
 class AgentType(str, Enum):
     """Types of agents that can consume CIAL intelligence"""
+
     TRADING = "trading"
     RISK = "risk"
     SENTIMENT = "sentiment"
@@ -43,6 +47,7 @@ class AgentType(str, Enum):
 
 class AgentStatus(str, Enum):
     """Agent operational status"""
+
     INITIALIZING = "initializing"
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -53,10 +58,12 @@ class AgentStatus(str, Enum):
 
 # Intelligence Models
 
+
 class IntelligenceMessage(BaseModel):
     """
     Core intelligence message that flows through CIAL.
     """
+
     id: str = Field(..., description="Unique intelligence message ID")
     type: IntelligenceType = Field(..., description="Type of intelligence")
     importance: IntelligenceImportance = Field(..., description="Importance classification")
@@ -79,13 +86,10 @@ class IntelligenceMessage(BaseModel):
                 "data": {
                     "current_price": 62500.0,
                     "price_change_24h": 5.2,
-                    "volume_24h": 28500000000
+                    "volume_24h": 28500000000,
                 },
-                "metadata": {
-                    "market_cap": 1200000000000,
-                    "rank": 1
-                },
-                "validated": True
+                "metadata": {"market_cap": 1200000000000, "rank": 1},
+                "validated": True,
             }
         }
     )
@@ -93,6 +97,7 @@ class IntelligenceMessage(BaseModel):
 
 class PriceIntelligence(BaseModel):
     """Price intelligence data structure"""
+
     symbol: str
     current_price: float
     price_change_24h: float
@@ -105,6 +110,7 @@ class PriceIntelligence(BaseModel):
 
 class SentimentIntelligence(BaseModel):
     """Sentiment intelligence data structure"""
+
     symbol: str
     sentiment_score: float = Field(..., ge=-1, le=1, description="Sentiment score from -1 to 1")
     confidence: float = Field(..., ge=0, le=1, description="Confidence in sentiment analysis")
@@ -117,10 +123,16 @@ class SentimentIntelligence(BaseModel):
 
 # Agent Models
 
+
 class AgentCapabilities(BaseModel):
     """Agent capabilities and configuration"""
-    intelligence_types: List[IntelligenceType] = Field(..., description="Types of intelligence the agent consumes")
-    symbols: List[str] = Field(default_factory=list, description="Symbols the agent monitors (empty = all)")
+
+    intelligence_types: List[IntelligenceType] = Field(
+        ..., description="Types of intelligence the agent consumes"
+    )
+    symbols: List[str] = Field(
+        default_factory=list, description="Symbols the agent monitors (empty = all)"
+    )
     min_importance: IntelligenceImportance = Field(default=IntelligenceImportance.NORMAL)
     real_time: bool = Field(default=True, description="Whether agent needs real-time streams")
     batch_processing: bool = Field(default=False, description="Whether agent processes in batches")
@@ -128,12 +140,13 @@ class AgentCapabilities(BaseModel):
 
 class AgentRegistration(BaseModel):
     """Agent registration request"""
+
     agent_id: str = Field(..., description="Unique agent identifier", min_length=3)
     agent_type: AgentType = Field(..., description="Type of agent")
     capabilities: AgentCapabilities = Field(..., description="Agent capabilities")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional agent metadata")
 
-    @field_validator('agent_id')
+    @field_validator("agent_id")
     @classmethod
     def validate_agent_id(cls, v: str) -> str:
         """Validate agent ID format"""
@@ -151,12 +164,9 @@ class AgentRegistration(BaseModel):
                     "symbols": ["BTC", "ETH"],
                     "min_importance": "normal",
                     "real_time": True,
-                    "batch_processing": False
+                    "batch_processing": False,
                 },
-                "metadata": {
-                    "version": "1.0.0",
-                    "owner": "trader_bot_service"
-                }
+                "metadata": {"version": "1.0.0", "owner": "trader_bot_service"},
             }
         }
     )
@@ -164,6 +174,7 @@ class AgentRegistration(BaseModel):
 
 class Agent(BaseModel):
     """Registered agent information"""
+
     agent_id: str
     agent_type: AgentType
     capabilities: AgentCapabilities
@@ -176,14 +187,17 @@ class Agent(BaseModel):
 
 class AgentStatusUpdate(BaseModel):
     """Agent status update request"""
+
     status: AgentStatus
     metadata: Optional[Dict[str, Any]] = None
 
 
 # API Response Models
 
+
 class AgentRegistrationResponse(BaseModel):
     """Response for agent registration"""
+
     success: bool
     agent_id: str
     message: str
@@ -193,12 +207,14 @@ class AgentRegistrationResponse(BaseModel):
 
 class AgentListResponse(BaseModel):
     """Response for listing agents"""
+
     total: int
     agents: List[Agent]
 
 
 class IntelligenceStreamResponse(BaseModel):
     """Response for intelligence stream query"""
+
     stream_type: str
     messages: List[IntelligenceMessage]
     total: int
@@ -207,8 +223,10 @@ class IntelligenceStreamResponse(BaseModel):
 
 # Data Connector Models
 
+
 class DataConnector(BaseModel):
     """Data connector registration"""
+
     connector_id: str
     name: str
     intelligence_types: List[IntelligenceType]
@@ -220,6 +238,7 @@ class DataConnector(BaseModel):
 
 class DataConnectorHealth(BaseModel):
     """Data connector health status"""
+
     connector_id: str
     healthy: bool
     last_success: Optional[datetime] = None

@@ -12,9 +12,9 @@ to ensure there are no import-time crashes like:
 Run this before every deployment to catch issues early.
 """
 
-import sys
 import importlib
 import pkgutil
+import sys
 from pathlib import Path
 from typing import List, Tuple
 

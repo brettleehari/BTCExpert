@@ -10,11 +10,12 @@ Features:
 - Custom rate limit responses
 """
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from typing import Callable
+
 from fastapi import Request
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
@@ -88,20 +89,21 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     Returns structured error response.
     """
     logger.warning(
-        f"Rate limit exceeded",
-        identifier=get_api_key_or_ip(request),
-        path=request.url.path
+        f"Rate limit exceeded", identifier=get_api_key_or_ip(request), path=request.url.path
     )
 
     # Record metric
     metrics.increment_counter(
-        'cial_rate_limit_exceeded_total',
-        {'path': request.url.path, 'identifier_type': 'api_key' if 'api_key:' in str(exc.detail) else 'ip'}
+        "cial_rate_limit_exceeded_total",
+        {
+            "path": request.url.path,
+            "identifier_type": "api_key" if "api_key:" in str(exc.detail) else "ip",
+        },
     )
 
     return {
         "error": "Rate limit exceeded",
         "detail": str(exc.detail),
         "retry_after": exc.detail.split(" ")[-1] if "retry after" in exc.detail.lower() else None,
-        "message": "Too many requests. Please slow down and try again later."
+        "message": "Too many requests. Please slow down and try again later.",
     }

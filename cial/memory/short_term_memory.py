@@ -3,14 +3,14 @@ CIAL Short-Term Memory (STM)
 Redis-based real-time intelligence cache with TTL-based lifecycle
 """
 
-from typing import Optional, Dict, Any, List
 import json
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
-from infrastructure.redis_manager import get_redis_manager
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
+from infrastructure.redis_manager import get_redis_manager
 
 
 class ShortTermMemory:
@@ -34,11 +34,7 @@ class ShortTermMemory:
 
     # Intelligence Caching
 
-    def cache_intelligence(
-        self,
-        message: IntelligenceMessage,
-        ttl: Optional[int] = None
-    ) -> bool:
+    def cache_intelligence(self, message: IntelligenceMessage, ttl: Optional[int] = None) -> bool:
         """
         Cache intelligence message in STM.
 
@@ -56,10 +52,7 @@ class ShortTermMemory:
 
             # Create key: intelligence:{type}:{symbol}:{id}
             key = self._make_key(
-                "intelligence",
-                message.type.value,
-                message.symbol or "global",
-                message.id
+                "intelligence", message.type.value, message.symbol or "global", message.id
             )
 
             # Serialize message
@@ -78,7 +71,7 @@ class ShortTermMemory:
                 f"Intelligence cached: {message.id}",
                 type=message.type.value,
                 symbol=message.symbol,
-                ttl=ttl
+                ttl=ttl,
             )
 
             return True
@@ -87,7 +80,9 @@ class ShortTermMemory:
             logger.error(f"Failed to cache intelligence: {e}", exc_info=True)
             return False
 
-    def get_intelligence(self, message_id: str, intelligence_type: IntelligenceType, symbol: Optional[str] = None) -> Optional[IntelligenceMessage]:
+    def get_intelligence(
+        self, message_id: str, intelligence_type: IntelligenceType, symbol: Optional[str] = None
+    ) -> Optional[IntelligenceMessage]:
         """
         Retrieve cached intelligence message.
 
@@ -101,10 +96,7 @@ class ShortTermMemory:
         """
         try:
             key = self._make_key(
-                "intelligence",
-                intelligence_type.value,
-                symbol or "global",
-                message_id
+                "intelligence", intelligence_type.value, symbol or "global", message_id
             )
 
             data = self.redis.client.get(key)
@@ -118,10 +110,7 @@ class ShortTermMemory:
             return None
 
     def get_recent_intelligence(
-        self,
-        intelligence_type: IntelligenceType,
-        symbol: Optional[str] = None,
-        limit: int = 100
+        self, intelligence_type: IntelligenceType, symbol: Optional[str] = None, limit: int = 100
     ) -> List[IntelligenceMessage]:
         """
         Get recent intelligence messages from cache.
@@ -163,9 +152,7 @@ class ShortTermMemory:
             Optional[Dict]: Price data or None
         """
         messages = self.get_recent_intelligence(
-            intelligence_type=IntelligenceType.PRICE,
-            symbol=symbol,
-            limit=1
+            intelligence_type=IntelligenceType.PRICE, symbol=symbol, limit=1
         )
 
         if messages:
@@ -176,10 +163,7 @@ class ShortTermMemory:
     # Agent Context Management
 
     def store_agent_context(
-        self,
-        agent_id: str,
-        context: Dict[str, Any],
-        ttl: int = 86400  # 24 hours default
+        self, agent_id: str, context: Dict[str, Any], ttl: int = 86400  # 24 hours default
     ) -> bool:
         """
         Store agent's working context.
@@ -228,10 +212,7 @@ class ShortTermMemory:
             return None
 
     def store_agent_decision(
-        self,
-        agent_id: str,
-        decision: Dict[str, Any],
-        ttl: int = 86400
+        self, agent_id: str, decision: Dict[str, Any], ttl: int = 86400
     ) -> bool:
         """
         Store agent decision in STM.
@@ -264,11 +245,7 @@ class ShortTermMemory:
             logger.error(f"Failed to store agent decision: {e}", exc_info=True)
             return False
 
-    def get_agent_decisions(
-        self,
-        agent_id: str,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    def get_agent_decisions(self, agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Get recent agent decisions.
 
@@ -298,11 +275,7 @@ class ShortTermMemory:
 
     # Market State
 
-    def store_market_state(
-        self,
-        state: Dict[str, Any],
-        ttl: int = 3600  # 1 hour
-    ) -> bool:
+    def store_market_state(self, state: Dict[str, Any], ttl: int = 3600) -> bool:  # 1 hour
         """
         Store current market state.
 
@@ -408,7 +381,7 @@ class ShortTermMemory:
                 "intelligence_cached": len(intelligence_keys),
                 "agent_contexts": len(context_keys),
                 "agent_decisions": len(decision_keys),
-                "redis_info": self.redis.get_info()
+                "redis_info": self.redis.get_info(),
             }
 
         except Exception as e:

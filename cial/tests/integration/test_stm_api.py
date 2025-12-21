@@ -2,9 +2,11 @@
 Integration tests for STM API endpoints
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, Mock
+
 from main import app
 
 client = TestClient(app)
@@ -13,17 +15,14 @@ client = TestClient(app)
 @pytest.mark.integration
 def test_store_and_get_agent_context():
     """Test storing and retrieving agent context"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.setex = Mock(return_value=True)
         mock_client.get = Mock(return_value='{"strategy": "momentum", "confidence": 0.85}')
 
         # Store context
-        context_data = {
-            "context": {"strategy": "momentum", "confidence": 0.85},
-            "ttl": 3600
-        }
+        context_data = {"context": {"strategy": "momentum", "confidence": 0.85}, "ttl": 3600}
 
         response = client.post("/api/v1/memory/stm/test_agent/context", json=context_data)
         assert response.status_code == 200
@@ -42,7 +41,7 @@ def test_store_and_get_agent_context():
 @pytest.mark.integration
 def test_store_agent_decision():
     """Test storing agent decision"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.setex = Mock(return_value=True)
@@ -55,9 +54,9 @@ def test_store_agent_decision():
                 "action": "buy",
                 "asset": "BTC",
                 "amount": 0.1,
-                "reasoning": "Strong bullish signal"
+                "reasoning": "Strong bullish signal",
             },
-            "ttl": 86400
+            "ttl": 86400,
         }
 
         response = client.post("/api/v1/memory/stm/test_agent/decision", json=decision_data)
@@ -70,7 +69,7 @@ def test_store_agent_decision():
 @pytest.mark.integration
 def test_get_agent_decisions():
     """Test retrieving agent decisions"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.zrevrange = Mock(return_value=["decision_001"])
@@ -87,13 +86,18 @@ def test_get_agent_decisions():
 @pytest.mark.integration
 def test_get_cached_price():
     """Test getting cached price"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.zrevrange = Mock(return_value=["price_msg_001"])
 
-        from api.models.intelligence import IntelligenceMessage, IntelligenceType, IntelligenceImportance
         from datetime import datetime
+
+        from api.models.intelligence import (
+            IntelligenceImportance,
+            IntelligenceMessage,
+            IntelligenceType,
+        )
 
         message = IntelligenceMessage(
             id="price_msg_001",
@@ -102,7 +106,7 @@ def test_get_cached_price():
             source="test",
             symbol="BTC",
             data={"current_price": 62500.0, "volume_24h": 28000000000},
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         mock_client.get = Mock(return_value=message.model_dump_json())
@@ -118,7 +122,7 @@ def test_get_cached_price():
 @pytest.mark.integration
 def test_get_market_state():
     """Test getting market state"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.get = Mock(return_value='{"trend": "bullish", "volatility": "medium"}')
@@ -134,7 +138,7 @@ def test_get_market_state():
 @pytest.mark.integration
 def test_clear_agent_memory():
     """Test clearing agent memory"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.delete = Mock(return_value=2)
@@ -149,18 +153,19 @@ def test_clear_agent_memory():
 @pytest.mark.integration
 def test_get_stm_stats():
     """Test getting STM statistics"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
-        mock_client.scan_iter = Mock(return_value=[
-            "cial:stm:intelligence:price:BTC:msg1",
-            "cial:stm:agent_context:agent1",
-            "cial:stm:agent_decision:agent1:dec1"
-        ])
-        mock_redis.return_value.get_info = Mock(return_value={
-            "connected": True,
-            "used_memory": "1MB"
-        })
+        mock_client.scan_iter = Mock(
+            return_value=[
+                "cial:stm:intelligence:price:BTC:msg1",
+                "cial:stm:agent_context:agent1",
+                "cial:stm:agent_decision:agent1:dec1",
+            ]
+        )
+        mock_redis.return_value.get_info = Mock(
+            return_value={"connected": True, "used_memory": "1MB"}
+        )
 
         response = client.get("/api/v1/memory/stm/stats")
         assert response.status_code == 200
@@ -171,7 +176,7 @@ def test_get_stm_stats():
 @pytest.mark.integration
 def test_get_context_not_found():
     """Test getting context for non-existent agent"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.get = Mock(return_value=None)
@@ -184,7 +189,7 @@ def test_get_context_not_found():
 @pytest.mark.integration
 def test_get_price_not_cached():
     """Test getting uncached price"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis:
         mock_client = Mock()
         mock_redis.return_value.client = mock_client
         mock_client.zrevrange = Mock(return_value=[])

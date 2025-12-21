@@ -2,23 +2,22 @@
 Unit tests for Kafka Manager
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 from infrastructure.kafka_manager import KafkaManager
-from api.models.intelligence import (
-    IntelligenceMessage,
-    IntelligenceType,
-    IntelligenceImportance
-)
 
 
 @pytest.fixture
 def mock_kafka_dependencies():
     """Mock Kafka dependencies"""
-    with patch('infrastructure.kafka_manager.KafkaProducer') as mock_producer, \
-         patch('infrastructure.kafka_manager.KafkaAdminClient') as mock_admin:
+    with (
+        patch("infrastructure.kafka_manager.KafkaProducer") as mock_producer,
+        patch("infrastructure.kafka_manager.KafkaAdminClient") as mock_admin,
+    ):
 
         mock_producer_instance = MagicMock()
         mock_admin_instance = MagicMock()
@@ -27,10 +26,10 @@ def mock_kafka_dependencies():
         mock_admin.return_value = mock_admin_instance
 
         yield {
-            'producer': mock_producer,
-            'producer_instance': mock_producer_instance,
-            'admin': mock_admin,
-            'admin_instance': mock_admin_instance
+            "producer": mock_producer,
+            "producer_instance": mock_producer_instance,
+            "admin": mock_admin,
+            "admin_instance": mock_admin_instance,
         }
 
 
@@ -54,7 +53,7 @@ def sample_message():
         data={"current_price": 62500.0, "price_change_percentage_24h": 5.5},
         metadata={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
 
@@ -72,8 +71,8 @@ def test_kafka_connect(mock_kafka_dependencies):
     manager.connect()
 
     assert manager._connected is True
-    mock_kafka_dependencies['producer'].assert_called_once()
-    mock_kafka_dependencies['admin'].assert_called_once()
+    mock_kafka_dependencies["producer"].assert_called_once()
+    mock_kafka_dependencies["admin"].assert_called_once()
 
 
 def test_kafka_disconnect(kafka_manager, mock_kafka_dependencies):
@@ -81,21 +80,21 @@ def test_kafka_disconnect(kafka_manager, mock_kafka_dependencies):
     kafka_manager.disconnect()
 
     assert kafka_manager._connected is False
-    mock_kafka_dependencies['producer_instance'].flush.assert_called_once()
-    mock_kafka_dependencies['producer_instance'].close.assert_called_once()
-    mock_kafka_dependencies['admin_instance'].close.assert_called_once()
+    mock_kafka_dependencies["producer_instance"].flush.assert_called_once()
+    mock_kafka_dependencies["producer_instance"].close.assert_called_once()
+    mock_kafka_dependencies["admin_instance"].close.assert_called_once()
 
 
 def test_publish_intelligence_success(kafka_manager, sample_message, mock_kafka_dependencies):
     """Test successful intelligence publishing"""
     mock_future = MagicMock()
-    mock_kafka_dependencies['producer_instance'].send.return_value = mock_future
+    mock_kafka_dependencies["producer_instance"].send.return_value = mock_future
 
     result = kafka_manager.publish_intelligence(sample_message)
 
     assert result is True
-    mock_kafka_dependencies['producer_instance'].send.assert_called()
-    mock_kafka_dependencies['producer_instance'].flush.assert_called()
+    mock_kafka_dependencies["producer_instance"].send.assert_called()
+    mock_kafka_dependencies["producer_instance"].flush.assert_called()
 
 
 def test_publish_intelligence_not_connected():
@@ -108,7 +107,7 @@ def test_publish_intelligence_not_connected():
         source="test",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     result = manager.publish_intelligence(message)
@@ -125,7 +124,7 @@ def test_get_topics_for_critical_price(kafka_manager):
         symbol="BTC",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     topics = kafka_manager._get_topics_for_message(message)
@@ -145,7 +144,7 @@ def test_get_topics_for_normal_price(kafka_manager):
         symbol="BTC",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     topics = kafka_manager._get_topics_for_message(message)
@@ -164,7 +163,7 @@ def test_get_topics_for_critical_sentiment(kafka_manager):
         source="test",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     topics = kafka_manager._get_topics_for_message(message)
@@ -182,7 +181,7 @@ def test_get_topics_for_critical_whale(kafka_manager):
         source="test",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     topics = kafka_manager._get_topics_for_message(message)
@@ -200,7 +199,7 @@ def test_get_topics_for_low_importance(kafka_manager):
         source="test",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     topics = kafka_manager._get_topics_for_message(message)
@@ -214,12 +213,12 @@ def test_create_topic(kafka_manager, mock_kafka_dependencies):
     result = kafka_manager.create_topic("test.topic", num_partitions=3, replication_factor=1)
 
     assert result is True
-    mock_kafka_dependencies['admin_instance'].create_topics.assert_called()
+    mock_kafka_dependencies["admin_instance"].create_topics.assert_called()
 
 
 def test_get_topics(kafka_manager, mock_kafka_dependencies):
     """Test getting list of topics"""
-    mock_kafka_dependencies['admin_instance'].list_topics.return_value = ["topic1", "topic2"]
+    mock_kafka_dependencies["admin_instance"].list_topics.return_value = ["topic1", "topic2"]
 
     topics = kafka_manager.get_topics()
 
@@ -230,13 +229,12 @@ def test_get_topics(kafka_manager, mock_kafka_dependencies):
 
 def test_create_consumer(kafka_manager, mock_kafka_dependencies):
     """Test consumer creation"""
-    with patch('infrastructure.kafka_manager.KafkaConsumer') as mock_consumer:
+    with patch("infrastructure.kafka_manager.KafkaConsumer") as mock_consumer:
         mock_consumer_instance = MagicMock()
         mock_consumer.return_value = mock_consumer_instance
 
         consumer = kafka_manager.create_consumer(
-            topics=["price.critical", "sentiment.breaking"],
-            group_id="test-group"
+            topics=["price.critical", "sentiment.breaking"], group_id="test-group"
         )
 
         assert consumer is not None
@@ -250,7 +248,7 @@ def test_is_connected(kafka_manager):
 
 def test_get_info_when_connected(kafka_manager, mock_kafka_dependencies):
     """Test getting Kafka info when connected"""
-    mock_kafka_dependencies['admin_instance'].list_topics.return_value = ["topic1", "topic2"]
+    mock_kafka_dependencies["admin_instance"].list_topics.return_value = ["topic1", "topic2"]
 
     info = kafka_manager.get_info()
 
@@ -271,13 +269,13 @@ def test_get_info_when_disconnected():
 def test_publish_with_custom_topics(kafka_manager, sample_message, mock_kafka_dependencies):
     """Test publishing to custom topics"""
     mock_future = MagicMock()
-    mock_kafka_dependencies['producer_instance'].send.return_value = mock_future
+    mock_kafka_dependencies["producer_instance"].send.return_value = mock_future
 
     custom_topics = ["custom.topic1", "custom.topic2"]
     result = kafka_manager.publish_intelligence(sample_message, topics=custom_topics)
 
     assert result is True
-    assert mock_kafka_dependencies['producer_instance'].send.call_count == 2
+    assert mock_kafka_dependencies["producer_instance"].send.call_count == 2
 
 
 def test_on_send_success_callback(kafka_manager):
@@ -296,9 +294,11 @@ def test_on_send_error_callback(kafka_manager):
     kafka_manager._on_send_error(Exception("Test error"), "test.topic", "msg_001")
 
 
-def test_publish_intelligence_error_handling(kafka_manager, sample_message, mock_kafka_dependencies):
+def test_publish_intelligence_error_handling(
+    kafka_manager, sample_message, mock_kafka_dependencies
+):
     """Test error handling during publishing"""
-    mock_kafka_dependencies['producer_instance'].send.side_effect = Exception("Kafka error")
+    mock_kafka_dependencies["producer_instance"].send.side_effect = Exception("Kafka error")
 
     result = kafka_manager.publish_intelligence(sample_message)
 

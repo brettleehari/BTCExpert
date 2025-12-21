@@ -2,28 +2,35 @@
 Unit tests for CoinGecko Connector
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
-import httpx
+from unittest.mock import AsyncMock, Mock, patch
 
-from connectors.price_intelligence.coingecko_connector import CoinGeckoConnector
+import httpx
+import pytest
+
 from api.models.intelligence import IntelligenceType, PriceIntelligence
+from connectors.price_intelligence.coingecko_connector import CoinGeckoConnector
 
 
 @pytest.fixture
 def mock_dependencies():
     """Mock all dependencies for CoinGeckoConnector"""
-    with patch('connectors.price_intelligence.coingecko_connector.get_intelligence_broker') as mock_broker, \
-         patch('connectors.price_intelligence.coingecko_connector.get_service_registry') as mock_registry, \
-         patch('connectors.price_intelligence.coingecko_connector.settings') as mock_settings:
+    with (
+        patch(
+            "connectors.price_intelligence.coingecko_connector.get_intelligence_broker"
+        ) as mock_broker,
+        patch(
+            "connectors.price_intelligence.coingecko_connector.get_service_registry"
+        ) as mock_registry,
+        patch("connectors.price_intelligence.coingecko_connector.settings") as mock_settings,
+    ):
 
         mock_settings.COINGECKO_API_KEY = None
 
         yield {
-            'broker': mock_broker.return_value,
-            'registry': mock_registry.return_value,
-            'settings': mock_settings
+            "broker": mock_broker.return_value,
+            "registry": mock_registry.return_value,
+            "settings": mock_settings,
         }
 
 
@@ -42,7 +49,7 @@ def sample_coingecko_response():
             "usd_24h_change": 2.5,
             "usd_24h_vol": 28500000000,
             "usd_market_cap": 1220000000000,
-            "last_updated_at": 1234567890
+            "last_updated_at": 1234567890,
         }
     }
 
@@ -50,7 +57,7 @@ def sample_coingecko_response():
 @pytest.mark.asyncio
 async def test_get_price_success(connector, mock_dependencies, sample_coingecko_response):
     """Test successful price fetch"""
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -73,13 +80,13 @@ async def test_get_price_success(connector, mock_dependencies, sample_coingecko_
         assert result.market_cap == 1220000000000
 
         # Verify service registry was called
-        mock_dependencies['registry'].report_success.assert_called_once_with("coingecko")
+        mock_dependencies["registry"].report_success.assert_called_once_with("coingecko")
 
 
 @pytest.mark.asyncio
 async def test_get_price_http_error(connector, mock_dependencies):
     """Test handling of HTTP errors"""
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 429
@@ -95,13 +102,13 @@ async def test_get_price_http_error(connector, mock_dependencies):
         result = await connector.get_price("BTC")
 
         assert result is None
-        mock_dependencies['registry'].report_error.assert_called_once()
+        mock_dependencies["registry"].report_error.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_get_price_no_data(connector, mock_dependencies):
     """Test handling when no data is returned for symbol"""
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -126,17 +133,17 @@ async def test_get_prices_batch_success(connector, mock_dependencies):
             "usd": 62500.0,
             "usd_24h_change": 2.5,
             "usd_24h_vol": 28500000000,
-            "usd_market_cap": 1220000000000
+            "usd_market_cap": 1220000000000,
         },
         "ethereum": {
             "usd": 3200.0,
             "usd_24h_change": 1.8,
             "usd_24h_vol": 15000000000,
-            "usd_market_cap": 385000000000
-        }
+            "usd_market_cap": 385000000000,
+        },
     }
 
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -157,13 +164,13 @@ async def test_get_prices_batch_success(connector, mock_dependencies):
         assert results["BTC"].current_price == 62500.0
         assert results["ETH"].current_price == 3200.0
 
-        mock_dependencies['registry'].report_success.assert_called_once()
+        mock_dependencies["registry"].report_success.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_get_prices_batch_error(connector, mock_dependencies):
     """Test batch price fetch error handling"""
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.get.side_effect = Exception("Network error")
         mock_client.__aenter__.return_value = mock_client
@@ -173,18 +180,20 @@ async def test_get_prices_batch_error(connector, mock_dependencies):
         results = await connector.get_prices_batch(["BTC", "ETH"])
 
         assert results == {}
-        mock_dependencies['registry'].report_error.assert_called_once()
+        mock_dependencies["registry"].report_error.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_ingest_price_intelligence_success(connector, mock_dependencies, sample_coingecko_response):
+async def test_ingest_price_intelligence_success(
+    connector, mock_dependencies, sample_coingecko_response
+):
     """Test complete intelligence ingestion pipeline"""
     mock_message = Mock()
     mock_message.id = "msg_001"
     mock_message.importance.value = "NORMAL"
-    mock_dependencies['broker'].process_intelligence.return_value = mock_message
+    mock_dependencies["broker"].process_intelligence.return_value = mock_message
 
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -201,19 +210,19 @@ async def test_ingest_price_intelligence_success(connector, mock_dependencies, s
         assert result is True
 
         # Verify broker was called to process intelligence
-        mock_dependencies['broker'].process_intelligence.assert_called_once()
-        call_args = mock_dependencies['broker'].process_intelligence.call_args
+        mock_dependencies["broker"].process_intelligence.assert_called_once()
+        call_args = mock_dependencies["broker"].process_intelligence.call_args
 
-        assert call_args.kwargs['intelligence_type'] == IntelligenceType.PRICE
-        assert call_args.kwargs['source'] == "coingecko"
-        assert call_args.kwargs['symbol'] == "BTC"
-        assert 'current_price' in call_args.kwargs['data']
+        assert call_args.kwargs["intelligence_type"] == IntelligenceType.PRICE
+        assert call_args.kwargs["source"] == "coingecko"
+        assert call_args.kwargs["symbol"] == "BTC"
+        assert "current_price" in call_args.kwargs["data"]
 
 
 @pytest.mark.asyncio
 async def test_ingest_price_intelligence_failure(connector, mock_dependencies):
     """Test ingestion failure when price fetch fails"""
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.get.side_effect = Exception("API error")
         mock_client.__aenter__.return_value = mock_client
@@ -223,7 +232,7 @@ async def test_ingest_price_intelligence_failure(connector, mock_dependencies):
         result = await connector.ingest_price_intelligence("BTC")
 
         assert result is False
-        mock_dependencies['broker'].process_intelligence.assert_not_called()
+        mock_dependencies["broker"].process_intelligence.assert_not_called()
 
 
 def test_symbol_to_id_mapping(connector):
@@ -259,10 +268,10 @@ async def test_rate_limiting(connector):
 @pytest.mark.asyncio
 async def test_get_price_with_api_key(mock_dependencies):
     """Test price fetch with API key"""
-    mock_dependencies['settings'].COINGECKO_API_KEY = "test_api_key"
+    mock_dependencies["settings"].COINGECKO_API_KEY = "test_api_key"
     connector = CoinGeckoConnector()
 
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -271,7 +280,7 @@ async def test_get_price_with_api_key(mock_dependencies):
                 "usd": 62500.0,
                 "usd_24h_change": 2.5,
                 "usd_24h_vol": 28500000000,
-                "usd_market_cap": 1220000000000
+                "usd_market_cap": 1220000000000,
             }
         }
         mock_response.raise_for_status = Mock()
@@ -285,8 +294,8 @@ async def test_get_price_with_api_key(mock_dependencies):
 
         # Verify API key was included in request
         call_args = mock_client.get.call_args
-        assert 'params' in call_args.kwargs
-        assert call_args.kwargs['params']['x_cg_pro_api_key'] == "test_api_key"
+        assert "params" in call_args.kwargs
+        assert call_args.kwargs["params"]["x_cg_pro_api_key"] == "test_api_key"
 
 
 def test_connector_initialization(mock_dependencies):

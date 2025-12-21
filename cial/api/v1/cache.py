@@ -5,12 +5,13 @@ Session 17: Caching Layer Enhancement
 Endpoints for cache monitoring, warming, and invalidation.
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from api.models.responses import VersionedResponse, success_response, error_response
-from infrastructure.caching import get_cache_manager, cache_key_builder
+from fastapi import APIRouter, HTTPException, Query
+
+from api.models.responses import VersionedResponse, error_response, success_response
+from infrastructure.caching import cache_key_builder, get_cache_manager
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
 
@@ -36,17 +37,14 @@ async def get_cache_stats() -> VersionedResponse[Dict[str, Any]]:
         cache_manager = get_cache_manager()
         stats = cache_manager.get_stats()
 
-        return success_response(
-            data=stats,
-            message="Cache statistics retrieved successfully"
-        )
+        return success_response(data=stats, message="Cache statistics retrieved successfully")
 
     except Exception as e:
         logger.error(f"Failed to get cache stats: {e}", exc_info=True)
         return error_response(
             message="Failed to retrieve cache statistics",
             error_code="CACHE_STATS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -54,8 +52,7 @@ async def get_cache_stats() -> VersionedResponse[Dict[str, Any]]:
 @trace_operation("cache_warm")
 async def warm_cache(
     symbols: Optional[List[str]] = Query(
-        None,
-        description="Specific symbols to warm (uses popular symbols if not provided)"
+        None, description="Specific symbols to warm (uses popular symbols if not provided)"
     )
 ) -> VersionedResponse[Dict[str, Any]]:
     """
@@ -82,17 +79,15 @@ async def warm_cache(
         return success_response(
             data={
                 "warmed_symbols": symbols or cache_manager.popular_symbols,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             },
-            message="Cache warming completed successfully"
+            message="Cache warming completed successfully",
         )
 
     except Exception as e:
         logger.error(f"Cache warming failed: {e}", exc_info=True)
         return error_response(
-            message="Cache warming failed",
-            error_code="CACHE_WARM_ERROR",
-            details={"error": str(e)}
+            message="Cache warming failed", error_code="CACHE_WARM_ERROR", details={"error": str(e)}
         )
 
 
@@ -101,9 +96,8 @@ async def warm_cache(
 async def invalidate_cache_key(
     key: str,
     cache_tier: str = Query(
-        "both",
-        description="Cache tier to invalidate: 'memory', 'redis', or 'both'"
-    )
+        "both", description="Cache tier to invalidate: 'memory', 'redis', or 'both'"
+    ),
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Invalidate a specific cache key.
@@ -127,17 +121,12 @@ async def invalidate_cache_key(
 
         if success:
             return success_response(
-                data={
-                    "key": key,
-                    "cache_tier": cache_tier,
-                    "invalidated": True
-                },
-                message=f"Cache key '{key}' invalidated successfully"
+                data={"key": key, "cache_tier": cache_tier, "invalidated": True},
+                message=f"Cache key '{key}' invalidated successfully",
             )
         else:
             return error_response(
-                message=f"Failed to invalidate cache key '{key}'",
-                error_code="INVALIDATION_FAILED"
+                message=f"Failed to invalidate cache key '{key}'", error_code="INVALIDATION_FAILED"
             )
 
     except Exception as e:
@@ -145,15 +134,13 @@ async def invalidate_cache_key(
         return error_response(
             message="Cache invalidation failed",
             error_code="CACHE_INVALIDATE_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
 @router.delete("/invalidate/pattern/{pattern}")
 @trace_operation("cache_invalidate_pattern")
-async def invalidate_cache_pattern(
-    pattern: str
-) -> VersionedResponse[Dict[str, Any]]:
+async def invalidate_cache_pattern(pattern: str) -> VersionedResponse[Dict[str, Any]]:
     """
     Invalidate all cache keys matching a pattern.
 
@@ -177,11 +164,8 @@ async def invalidate_cache_pattern(
         deleted_count = await cache_manager.invalidate_pattern(pattern)
 
         return success_response(
-            data={
-                "pattern": pattern,
-                "keys_deleted": deleted_count
-            },
-            message=f"Invalidated {deleted_count} keys matching pattern '{pattern}'"
+            data={"pattern": pattern, "keys_deleted": deleted_count},
+            message=f"Invalidated {deleted_count} keys matching pattern '{pattern}'",
         )
 
     except Exception as e:
@@ -189,7 +173,7 @@ async def invalidate_cache_pattern(
         return error_response(
             message="Pattern invalidation failed",
             error_code="PATTERN_INVALIDATE_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -198,9 +182,8 @@ async def invalidate_cache_pattern(
 async def get_cache_value(
     key: str,
     cache_tier: str = Query(
-        "both",
-        description="Cache tier to query: 'memory', 'redis', or 'both'"
-    )
+        "both", description="Cache tier to query: 'memory', 'redis', or 'both'"
+    ),
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Get value from cache (for debugging/monitoring).
@@ -223,23 +206,13 @@ async def get_cache_value(
 
         if value is not None:
             return success_response(
-                data={
-                    "key": key,
-                    "value": value,
-                    "found": True,
-                    "cache_tier": cache_tier
-                },
-                message="Cache value retrieved"
+                data={"key": key, "value": value, "found": True, "cache_tier": cache_tier},
+                message="Cache value retrieved",
             )
         else:
             return success_response(
-                data={
-                    "key": key,
-                    "value": None,
-                    "found": False,
-                    "cache_tier": cache_tier
-                },
-                message="Cache key not found"
+                data={"key": key, "value": None, "found": False, "cache_tier": cache_tier},
+                message="Cache key not found",
             )
 
     except Exception as e:
@@ -247,7 +220,7 @@ async def get_cache_value(
         return error_response(
             message="Failed to retrieve cache value",
             error_code="CACHE_GET_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -257,7 +230,7 @@ async def set_cache_value(
     key: str = Query(..., description="Cache key"),
     value: Any = Query(..., description="Value to cache"),
     ttl: Optional[int] = Query(None, description="Time-to-live in seconds"),
-    cache_tier: str = Query("both", description="Cache tier: 'memory', 'redis', or 'both'")
+    cache_tier: str = Query("both", description="Cache tier: 'memory', 'redis', or 'both'"),
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Set value in cache (for testing/development).
@@ -278,27 +251,16 @@ async def set_cache_value(
     """
     try:
         cache_manager = get_cache_manager()
-        success = await cache_manager.set(
-            key=key,
-            value=value,
-            ttl=ttl,
-            cache_tier=cache_tier
-        )
+        success = await cache_manager.set(key=key, value=value, ttl=ttl, cache_tier=cache_tier)
 
         if success:
             return success_response(
-                data={
-                    "key": key,
-                    "ttl": ttl,
-                    "cache_tier": cache_tier,
-                    "set": True
-                },
-                message="Cache value set successfully"
+                data={"key": key, "ttl": ttl, "cache_tier": cache_tier, "set": True},
+                message="Cache value set successfully",
             )
         else:
             return error_response(
-                message="Failed to set cache value",
-                error_code="CACHE_SET_FAILED"
+                message="Failed to set cache value", error_code="CACHE_SET_FAILED"
             )
 
     except Exception as e:
@@ -306,7 +268,7 @@ async def set_cache_value(
         return error_response(
             message="Failed to set cache value",
             error_code="CACHE_SET_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -341,9 +303,9 @@ async def cache_health() -> VersionedResponse[Dict[str, str]]:
                 "status": status,
                 "memory_cache": "operational" if memory_ok else "failed",
                 "redis_cache": "operational" if redis_ok else "failed",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             },
-            message=f"Cache layer is {status}"
+            message=f"Cache layer is {status}",
         )
 
     except Exception as e:
@@ -351,5 +313,5 @@ async def cache_health() -> VersionedResponse[Dict[str, str]]:
         return error_response(
             message="Cache health check failed",
             error_code="CACHE_HEALTH_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )

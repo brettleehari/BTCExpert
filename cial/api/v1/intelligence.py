@@ -5,29 +5,30 @@ Endpoints for accessing market intelligence
 Version: 1.0 (with versioned responses)
 """
 
-from fastapi import APIRouter, HTTPException, Query, Path, Body, Request
-from typing import Optional, Dict, Any, List
 import time
 import uuid
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Body, HTTPException, Path, Query, Request
 
 from api.models.intelligence import (
+    DataConnector,
+    IntelligenceImportance,
     IntelligenceMessage,
     IntelligenceStreamResponse,
     IntelligenceType,
-    IntelligenceImportance,
-    DataConnector
 )
 from api.models.responses import (
-    success_response,
+    APIVersion,
+    VersionedResponse,
     error_response,
     paginated_response,
-    APIVersion,
-    VersionedResponse
+    success_response,
 )
+from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
 from infrastructure.logging_config import logger
-from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ def _get_request_metadata(request: Request, start_time: float) -> Dict[str, Any]
         "request_id": str(uuid.uuid4()),
         "processing_time_ms": round((time.time() - start_time) * 1000, 2),
         "path": str(request.url.path),
-        "method": request.method
+        "method": request.method,
     }
 
 
@@ -46,7 +47,7 @@ def _get_request_metadata(request: Request, start_time: float) -> Dict[str, Any]
 async def get_intelligence_stream(
     stream_type: str = Path(..., description="Intelligence stream type"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum messages to return"),
-    symbol: Optional[str] = Query(None, description="Filter by cryptocurrency symbol")
+    symbol: Optional[str] = Query(None, description="Filter by cryptocurrency symbol"),
 ):
     """
     Get intelligence stream data.
@@ -69,28 +70,25 @@ async def get_intelligence_stream(
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid stream type: {stream_type}. Valid types: price, sentiment, whale, technical, regulatory, defi, onchain"
+            detail=f"Invalid stream type: {stream_type}. Valid types: price, sentiment, whale, technical, regulatory, defi, onchain",
         )
 
     broker = get_intelligence_broker()
     messages = broker.get_recent_intelligence(
-        intelligence_type=intel_type,
-        symbol=symbol,
-        limit=limit
+        intelligence_type=intel_type, symbol=symbol, limit=limit
     )
 
     return IntelligenceStreamResponse(
         stream_type=stream_type,
         messages=messages,
         total=len(messages),
-        has_more=len(messages) >= limit
+        has_more=len(messages) >= limit,
     )
 
 
 @router.get("/price/{symbol}/current")
 async def get_current_price(
-    request: Request,
-    symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")
+    request: Request, symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")
 ):
     """
     Get current price intelligence for a cryptocurrency.
@@ -124,26 +122,19 @@ async def get_current_price(
 
     broker = get_intelligence_broker()
     messages = broker.get_recent_intelligence(
-        intelligence_type=IntelligenceType.PRICE,
-        symbol=symbol.upper(),
-        limit=1
+        intelligence_type=IntelligenceType.PRICE, symbol=symbol.upper(), limit=1
     )
 
     if not messages:
         raise HTTPException(
-            status_code=404,
-            detail=f"No price intelligence available for {symbol.upper()}"
+            status_code=404, detail=f"No price intelligence available for {symbol.upper()}"
         )
 
     metadata = _get_request_metadata(request, start_time)
-    metadata['symbol'] = symbol.upper()
-    metadata['source'] = messages[0].source
+    metadata["symbol"] = symbol.upper()
+    metadata["source"] = messages[0].source
 
-    return success_response(
-        data=messages[0],
-        version=APIVersion.V1,
-        metadata=metadata
-    )
+    return success_response(data=messages[0], version=APIVersion.V1, metadata=metadata)
 
 
 @router.get("/price/{symbol}/live")
@@ -170,23 +161,17 @@ async def get_live_price(
 
         if not success:
             raise HTTPException(
-                status_code=503,
-                detail=f"Failed to fetch price for {symbol.upper()} from CoinGecko"
+                status_code=503, detail=f"Failed to fetch price for {symbol.upper()} from CoinGecko"
             )
 
         # Get the freshly cached price
         broker = get_intelligence_broker()
         messages = broker.get_recent_intelligence(
-            intelligence_type=IntelligenceType.PRICE,
-            symbol=symbol.upper(),
-            limit=1
+            intelligence_type=IntelligenceType.PRICE, symbol=symbol.upper(), limit=1
         )
 
         if not messages:
-            raise HTTPException(
-                status_code=500,
-                detail="Price was fetched but not found in cache"
-            )
+            raise HTTPException(status_code=500, detail="Price was fetched but not found in cache")
 
         return messages[0]
 
@@ -200,7 +185,9 @@ async def get_live_price(
 @router.post("/price/batch")
 async def get_batch_prices(
     request: Request,
-    symbols: list[str] = Body(..., description="List of cryptocurrency symbols", example=["BTC", "ETH", "SOL"])
+    symbols: list[str] = Body(
+        ..., description="List of cryptocurrency symbols", example=["BTC", "ETH", "SOL"]
+    ),
 ):
     """
     Fetch live prices for multiple cryptocurrencies in a single request.
@@ -239,21 +226,15 @@ async def get_batch_prices(
 
         if not prices:
             raise HTTPException(
-                status_code=503,
-                detail="Failed to fetch batch prices from CoinGecko"
+                status_code=503, detail="Failed to fetch batch prices from CoinGecko"
             )
 
         metadata = _get_request_metadata(request, start_time)
-        metadata['symbols_requested'] = len(symbols)
-        metadata['symbols_returned'] = len(prices)
+        metadata["symbols_requested"] = len(symbols)
+        metadata["symbols_returned"] = len(prices)
 
         return success_response(
-            data={
-                "total": len(prices),
-                "prices": prices
-            },
-            version=APIVersion.V1,
-            metadata=metadata
+            data={"total": len(prices), "prices": prices}, version=APIVersion.V1, metadata=metadata
         )
 
     except HTTPException:
@@ -264,9 +245,7 @@ async def get_batch_prices(
 
 
 @router.get("/sentiment/{symbol}/current")
-async def get_current_sentiment(
-    symbol: str = Path(..., description="Cryptocurrency symbol")
-):
+async def get_current_sentiment(symbol: str = Path(..., description="Cryptocurrency symbol")):
     """
     Get current sentiment intelligence for a cryptocurrency.
 
@@ -278,15 +257,12 @@ async def get_current_sentiment(
     """
     broker = get_intelligence_broker()
     messages = broker.get_recent_intelligence(
-        intelligence_type=IntelligenceType.SENTIMENT,
-        symbol=symbol.upper(),
-        limit=1
+        intelligence_type=IntelligenceType.SENTIMENT, symbol=symbol.upper(), limit=1
     )
 
     if not messages:
         raise HTTPException(
-            status_code=404,
-            detail=f"No sentiment intelligence available for {symbol.upper()}"
+            status_code=404, detail=f"No sentiment intelligence available for {symbol.upper()}"
         )
 
     return messages[0]
@@ -298,7 +274,7 @@ async def ingest_intelligence(
     source: str = Body(..., description="Data source identifier"),
     data: Dict[str, Any] = Body(..., description="Intelligence data payload"),
     symbol: Optional[str] = Body(None, description="Cryptocurrency symbol"),
-    metadata: Optional[Dict[str, Any]] = Body(None, description="Additional metadata")
+    metadata: Optional[Dict[str, Any]] = Body(None, description="Additional metadata"),
 ):
     """
     Ingest raw intelligence data into CIAL pipeline.
@@ -317,7 +293,7 @@ async def ingest_intelligence(
             source=source,
             data=data,
             symbol=symbol,
-            metadata=metadata
+            metadata=metadata,
         )
 
         return message
@@ -366,18 +342,16 @@ async def get_intelligence_stats(request: Request):
 
     metadata = _get_request_metadata(request, start_time)
 
-    return success_response(
-        data=stats,
-        version=APIVersion.V1,
-        metadata=metadata
-    )
+    return success_response(data=stats, version=APIVersion.V1, metadata=metadata)
 
 
 @router.get("/connectors")
 async def list_connectors(
     request: Request,
-    intelligence_type: Optional[IntelligenceType] = Query(None, description="Filter by intelligence type"),
-    enabled_only: bool = Query(True, description="Only show enabled connectors")
+    intelligence_type: Optional[IntelligenceType] = Query(
+        None, description="Filter by intelligence type"
+    ),
+    enabled_only: bool = Query(True, description="Only show enabled connectors"),
 ):
     """
     List all registered data connectors.
@@ -419,18 +393,15 @@ async def list_connectors(
         connectors = registry.get_all_connectors()
 
     metadata = _get_request_metadata(request, start_time)
-    metadata['total_connectors'] = len(connectors)
-    metadata['enabled_only'] = enabled_only
+    metadata["total_connectors"] = len(connectors)
+    metadata["enabled_only"] = enabled_only
     if intelligence_type:
-        metadata['filtered_by_type'] = intelligence_type.value
+        metadata["filtered_by_type"] = intelligence_type.value
 
     return success_response(
-        data={
-            "total": len(connectors),
-            "connectors": connectors
-        },
+        data={"total": len(connectors), "connectors": connectors},
         version=APIVersion.V1,
-        metadata=metadata
+        metadata=metadata,
     )
 
 

@@ -3,12 +3,17 @@ Unit tests for Intelligence Broker
 """
 
 import pytest
+
 from api.models.intelligence import (
-    IntelligenceType, IntelligenceImportance, DataConnector
+    AgentCapabilities,
+    AgentRegistration,
+    AgentType,
+    DataConnector,
+    IntelligenceImportance,
+    IntelligenceType,
 )
-from core.intelligence_broker import IntelligenceBroker
 from core.agent_registry import AgentRegistry
-from api.models.intelligence import AgentRegistration, AgentCapabilities, AgentType
+from core.intelligence_broker import IntelligenceBroker
 
 
 @pytest.fixture
@@ -21,14 +26,15 @@ def broker():
 def broker_with_agent(broker):
     """Broker with a registered agent"""
     registry = broker.agent_registry
-    registry.register_agent(AgentRegistration(
-        agent_id="test_agent",
-        agent_type=AgentType.TRADING,
-        capabilities=AgentCapabilities(
-            intelligence_types=[IntelligenceType.PRICE],
-            symbols=["BTC"]
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="test_agent",
+            agent_type=AgentType.TRADING,
+            capabilities=AgentCapabilities(
+                intelligence_types=[IntelligenceType.PRICE], symbols=["BTC"]
+            ),
         )
-    ))
+    )
     return broker
 
 
@@ -37,11 +43,8 @@ def test_process_price_intelligence(broker):
     message = broker.process_intelligence(
         intelligence_type=IntelligenceType.PRICE,
         source="coingecko",
-        data={
-            "current_price": 62500.0,
-            "price_change_percentage_24h": 5.5
-        },
-        symbol="BTC"
+        data={"current_price": 62500.0, "price_change_percentage_24h": 5.5},
+        symbol="BTC",
     )
 
     assert message.id is not None
@@ -58,7 +61,7 @@ def test_classify_price_importance(broker):
         intelligence_type=IntelligenceType.PRICE,
         source="test",
         data={"price_change_percentage_24h": 6.0},
-        symbol="BTC"
+        symbol="BTC",
     )
     assert msg1.importance == IntelligenceImportance.CRITICAL
 
@@ -67,7 +70,7 @@ def test_classify_price_importance(broker):
         intelligence_type=IntelligenceType.PRICE,
         source="test",
         data={"price_change_percentage_24h": 2.0},
-        symbol="BTC"
+        symbol="BTC",
     )
     assert msg2.importance == IntelligenceImportance.NORMAL
 
@@ -76,7 +79,7 @@ def test_classify_price_importance(broker):
         intelligence_type=IntelligenceType.PRICE,
         source="test",
         data={"price_change_percentage_24h": 0.5},
-        symbol="BTC"
+        symbol="BTC",
     )
     assert msg3.importance == IntelligenceImportance.LOW
 
@@ -88,7 +91,7 @@ def test_classify_whale_importance(broker):
         intelligence_type=IntelligenceType.WHALE,
         source="whale_alert",
         data={"amount_usd": 15_000_000},
-        symbol="BTC"
+        symbol="BTC",
     )
     assert msg1.importance == IntelligenceImportance.CRITICAL
 
@@ -97,7 +100,7 @@ def test_classify_whale_importance(broker):
         intelligence_type=IntelligenceType.WHALE,
         source="whale_alert",
         data={"amount_usd": 5_000_000},
-        symbol="BTC"
+        symbol="BTC",
     )
     assert msg2.importance == IntelligenceImportance.NORMAL
 
@@ -106,7 +109,7 @@ def test_classify_whale_importance(broker):
         intelligence_type=IntelligenceType.WHALE,
         source="whale_alert",
         data={"amount_usd": 500_000},
-        symbol="BTC"
+        symbol="BTC",
     )
     assert msg3.importance == IntelligenceImportance.LOW
 
@@ -117,7 +120,7 @@ def test_routing_to_agents(broker_with_agent):
         intelligence_type=IntelligenceType.PRICE,
         source="coingecko",
         data={"current_price": 62500.0},
-        symbol="BTC"
+        symbol="BTC",
     )
 
     # Check that agent received the message (activity updated)
@@ -131,7 +134,7 @@ def test_register_connector(broker):
         connector_id="test_connector",
         name="Test Connector",
         intelligence_types=[IntelligenceType.PRICE],
-        reliability_score=0.95
+        reliability_score=0.95,
     )
 
     success = broker.register_connector(connector)
@@ -150,7 +153,7 @@ def test_get_recent_intelligence(broker):
             intelligence_type=IntelligenceType.PRICE,
             source="test",
             data={"price": 60000 + i * 100},
-            symbol="BTC"
+            symbol="BTC",
         )
 
     recent = broker.get_recent_intelligence(limit=3)
@@ -160,17 +163,14 @@ def test_get_recent_intelligence(broker):
 def test_filter_intelligence_by_type(broker):
     """Test filtering intelligence by type"""
     broker.process_intelligence(
-        intelligence_type=IntelligenceType.PRICE,
-        source="test",
-        data={"price": 62500},
-        symbol="BTC"
+        intelligence_type=IntelligenceType.PRICE, source="test", data={"price": 62500}, symbol="BTC"
     )
 
     broker.process_intelligence(
         intelligence_type=IntelligenceType.SENTIMENT,
         source="test",
         data={"sentiment_score": 0.8},
-        symbol="BTC"
+        symbol="BTC",
     )
 
     price_intel = broker.get_recent_intelligence(intelligence_type=IntelligenceType.PRICE)
@@ -186,7 +186,7 @@ def test_broker_stats(broker_with_agent):
             intelligence_type=IntelligenceType.PRICE,
             source="test",
             data={"price": 60000},
-            symbol="BTC"
+            symbol="BTC",
         )
 
     stats = broker_with_agent.get_broker_stats()

@@ -3,35 +3,36 @@ CIAL - Crypto Intelligence Abstraction Layer
 Main FastAPI Application Entry Point
 """
 
+import time
+from contextlib import asynccontextmanager
+from datetime import datetime
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from contextlib import asynccontextmanager
-import time
-from datetime import datetime
+from prometheus_client import CONTENT_TYPE_LATEST
+from slowapi.errors import RateLimitExceeded
 
-from api.v1.intelligence import router as intelligence_router
 from api.v1.agents import router as agents_router
+from api.v1.auth import router as auth_router
+from api.v1.cache import router as cache_router
+from api.v1.database import router as database_router
+from api.v1.intelligence import router as intelligence_router
 from api.v1.memory import router as memory_router
-from api.v1.validation import router as validation_router
 from api.v1.system import router as system_router
 from api.v1.timeseries import router as timeseries_router
-from api.v1.cache import router as cache_router
+from api.v1.validation import router as validation_router
 from api.v1.websocket import router as websocket_router
-from api.v1.database import router as database_router
-from api.v1.auth import router as auth_router
-from infrastructure.logging_config import logger
-from infrastructure.config import settings
 from core.service_registry import initialize_default_connectors
-from infrastructure.container import initialize_container, shutdown_container, get_container
+from infrastructure.config import settings
+from infrastructure.container import get_container, initialize_container, shutdown_container
+from infrastructure.logging_config import logger
 from infrastructure.observability import (
-    initialize_observability,
     get_prometheus_metrics,
-    sync_resilience_metrics
+    initialize_observability,
+    sync_resilience_metrics,
 )
 from infrastructure.rate_limiter import limiter, rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from prometheus_client import CONTENT_TYPE_LATEST
 
 
 @asynccontextmanager
@@ -60,6 +61,7 @@ async def lifespan(app: FastAPI):
     # Initialize WebSocket manager (optional - gracefully degrade if unavailable)
     try:
         from infrastructure.websocket_manager import get_websocket_manager
+
         await get_websocket_manager()
         logger.info("✅ WebSocket manager initialized")
     except Exception as e:
@@ -75,6 +77,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown WebSocket manager
     from infrastructure.websocket_manager import _websocket_manager
+
     if _websocket_manager:
         await _websocket_manager.stop_pubsub_listener()
         logger.info("✅ WebSocket manager stopped")
@@ -132,7 +135,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "error": "Internal server error",
             "message": str(exc) if settings.DEBUG else "An unexpected error occurred",
             "timestamp": datetime.utcnow().isoformat(),
-        }
+        },
     )
 
 
@@ -188,7 +191,7 @@ async def health_check():
             "redis": redis_status,
             "postgres": postgres_status,
             "kafka": kafka_status,
-        }
+        },
     }
 
 
@@ -205,11 +208,7 @@ async def root():
         "message": "Welcome to CIAL - Crypto Intelligence Abstraction Layer",
         "tagline": "The Neural Network for Crypto Data Intelligence",
         "version": settings.API_VERSION,
-        "documentation": {
-            "swagger": "/docs",
-            "redoc": "/redoc",
-            "openapi": "/api/openapi.json"
-        },
+        "documentation": {"swagger": "/docs", "redoc": "/redoc", "openapi": "/api/openapi.json"},
         "endpoints": {
             "health": "/health",
             "metrics": "/metrics",
@@ -221,13 +220,13 @@ async def root():
             "resilience": "/api/v1/system/resilience",
             "timeseries": "/api/v1/timeseries",
             "cache": "/api/v1/cache",
-            "websocket": "/api/v1/websocket/stream"
+            "websocket": "/api/v1/websocket/stream",
         },
         "monitoring": {
             "prometheus_metrics": "/metrics",
             "resilience_stats": "/api/v1/system/resilience",
-            "health_check": "/health"
-        }
+            "health_check": "/health",
+        },
     }
 
 
@@ -250,10 +249,7 @@ async def metrics():
     # Sync resilience metrics before exporting
     sync_resilience_metrics()
 
-    return Response(
-        content=get_prometheus_metrics(),
-        media_type=CONTENT_TYPE_LATEST
-    )
+    return Response(content=get_prometheus_metrics(), media_type=CONTENT_TYPE_LATEST)
 
 
 # Register API routers

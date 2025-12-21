@@ -3,11 +3,12 @@ CIAL Redis Manager
 Connection and management for Redis-based Short-Term Memory
 """
 
-import redis
-from redis.asyncio import Redis as AsyncRedis
-from typing import Optional, Any, Dict
 import json
 from datetime import timedelta
+from typing import Any, Dict, Optional
+
+import redis
+from redis.asyncio import Redis as AsyncRedis
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
@@ -35,7 +36,7 @@ class RedisManager:
                 db=settings.REDIS_DB,
                 password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
                 max_connections=settings.REDIS_MAX_CONNECTIONS,
-                decode_responses=True
+                decode_responses=True,
             )
 
             self._sync_client = redis.Redis(connection_pool=pool)
@@ -48,7 +49,7 @@ class RedisManager:
                 "Redis connected successfully",
                 host=settings.REDIS_HOST,
                 port=settings.REDIS_PORT,
-                db=settings.REDIS_DB
+                db=settings.REDIS_DB,
             )
 
         except Exception as e:
@@ -63,7 +64,7 @@ class RedisManager:
                 port=settings.REDIS_PORT,
                 db=settings.REDIS_DB,
                 password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
-                decode_responses=True
+                decode_responses=True,
             )
 
             # Test connection
@@ -124,7 +125,7 @@ class RedisManager:
             "used_memory": info.get("used_memory_human"),
             "connected_clients": info.get("connected_clients"),
             "total_commands_processed": info.get("total_commands_processed"),
-            "keyspace": self.client.dbsize()
+            "keyspace": self.client.dbsize(),
         }
 
 

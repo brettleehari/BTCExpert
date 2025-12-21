@@ -3,28 +3,29 @@ CIAL Base Agent Interface
 Standardized framework for building intelligent crypto agents
 """
 
-from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any, Callable
-from datetime import datetime
-from enum import Enum
 import asyncio
 import uuid
+from abc import ABC, abstractmethod
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 from api.models.intelligence import (
+    AgentCapabilities,
+    AgentStatus,
+    AgentType,
+    IntelligenceImportance,
     IntelligenceMessage,
     IntelligenceType,
-    IntelligenceImportance,
-    AgentType,
-    AgentCapabilities,
-    AgentStatus
 )
-from memory.short_term_memory import get_short_term_memory
-from memory.long_term_memory import get_long_term_memory
 from infrastructure.logging_config import logger
+from memory.long_term_memory import get_long_term_memory
+from memory.short_term_memory import get_short_term_memory
 
 
 class AgentDecisionType(str, Enum):
     """Types of agent decisions"""
+
     BUY = "buy"
     SELL = "sell"
     HOLD = "hold"
@@ -37,13 +38,14 @@ class AgentDecision:
     """
     Represents an agent decision with metadata.
     """
+
     def __init__(
         self,
         decision_type: AgentDecisionType,
         confidence: float,
         reasoning: str,
         data: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         self.id = f"decision_{uuid.uuid4().hex[:12]}"
         self.decision_type = decision_type
@@ -62,7 +64,7 @@ class AgentDecision:
             "reasoning": self.reasoning,
             "data": self.data,
             "metadata": self.metadata,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -83,7 +85,7 @@ class BaseAgent(ABC):
         agent_id: str,
         agent_type: AgentType,
         capabilities: AgentCapabilities,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         self.agent_id = agent_id
         self.agent_type = agent_type
@@ -105,7 +107,7 @@ class BaseAgent(ABC):
         logger.info(
             f"Agent initialized: {self.agent_id}",
             type=self.agent_type.value,
-            capabilities=self.capabilities.model_dump()
+            capabilities=self.capabilities.model_dump(),
         )
 
     # Lifecycle Management
@@ -188,9 +190,7 @@ class BaseAgent(ABC):
         await self._intelligence_queue.put(message)
 
         logger.debug(
-            f"Intelligence queued: {message.id}",
-            agent=self.agent_id,
-            type=message.type.value
+            f"Intelligence queued: {message.id}", agent=self.agent_id, type=message.type.value
         )
 
     def _should_process(self, message: IntelligenceMessage) -> bool:
@@ -216,13 +216,10 @@ class BaseAgent(ABC):
         importance_order = {
             IntelligenceImportance.LOW: 0,
             IntelligenceImportance.NORMAL: 1,
-            IntelligenceImportance.CRITICAL: 2
+            IntelligenceImportance.CRITICAL: 2,
         }
 
-        min_importance = importance_order.get(
-            self.capabilities.min_importance,
-            0
-        )
+        min_importance = importance_order.get(self.capabilities.min_importance, 0)
         message_importance = importance_order.get(message.importance, 0)
 
         if message_importance < min_importance:
@@ -241,10 +238,7 @@ class BaseAgent(ABC):
             while self._running:
                 try:
                     # Get intelligence from queue (with timeout)
-                    message = await asyncio.wait_for(
-                        self._intelligence_queue.get(),
-                        timeout=1.0
-                    )
+                    message = await asyncio.wait_for(self._intelligence_queue.get(), timeout=1.0)
 
                     # Process the intelligence
                     await self._process_intelligence(message)
@@ -254,9 +248,7 @@ class BaseAgent(ABC):
                     continue
                 except Exception as e:
                     logger.error(
-                        f"Error in processing loop: {e}",
-                        agent=self.agent_id,
-                        exc_info=True
+                        f"Error in processing loop: {e}", agent=self.agent_id, exc_info=True
                     )
 
         except asyncio.CancelledError:
@@ -283,10 +275,7 @@ class BaseAgent(ABC):
                 self._decisions.append(decision)
 
                 # Save to STM
-                self.stm.store_agent_decision(
-                    agent_id=self.agent_id,
-                    decision=decision.to_dict()
-                )
+                self.stm.store_agent_decision(agent_id=self.agent_id, decision=decision.to_dict())
 
                 # Execute decision
                 await self.execute_decision(decision)
@@ -295,7 +284,7 @@ class BaseAgent(ABC):
                     f"Decision made: {decision.decision_type.value}",
                     agent=self.agent_id,
                     confidence=decision.confidence,
-                    intelligence_id=message.id
+                    intelligence_id=message.id,
                 )
 
         except Exception as e:
@@ -303,7 +292,7 @@ class BaseAgent(ABC):
                 f"Failed to process intelligence: {e}",
                 agent=self.agent_id,
                 message_id=message.id,
-                exc_info=True
+                exc_info=True,
             )
 
     async def _update_context(self, message: IntelligenceMessage):
@@ -317,7 +306,7 @@ class BaseAgent(ABC):
         self._context[f"last_{message.type.value}"] = {
             "id": message.id,
             "data": message.data,
-            "timestamp": message.timestamp.isoformat()
+            "timestamp": message.timestamp.isoformat(),
         }
 
         # Update symbol-specific context
@@ -329,10 +318,7 @@ class BaseAgent(ABC):
             self._context[symbol_key][message.type.value] = message.data
 
         # Save context to STM
-        self.stm.store_agent_context(
-            agent_id=self.agent_id,
-            context=self._context
-        )
+        self.stm.store_agent_context(agent_id=self.agent_id, context=self._context)
 
     # Memory Access Helpers
 
@@ -343,6 +329,7 @@ class BaseAgent(ABC):
     async def get_price_history(self, symbol: str, days: int = 7) -> List[Dict[str, Any]]:
         """Get historical prices from LTM."""
         from datetime import timedelta
+
         start_time = datetime.utcnow() - timedelta(days=days)
         return await self.ltm.get_historical_prices(symbol, start_time)
 
@@ -357,10 +344,7 @@ class BaseAgent(ABC):
     # Abstract Methods (must be implemented by subclasses)
 
     @abstractmethod
-    async def process_intelligence(
-        self,
-        message: IntelligenceMessage
-    ) -> Optional[AgentDecision]:
+    async def process_intelligence(self, message: IntelligenceMessage) -> Optional[AgentDecision]:
         """
         Process intelligence and make a decision.
 
@@ -416,7 +400,7 @@ class BaseAgent(ABC):
             "total_decisions": len(self._decisions),
             "decisions_by_type": self._count_decisions_by_type(),
             "average_confidence": self._average_confidence(),
-            "queue_size": self._intelligence_queue.qsize()
+            "queue_size": self._intelligence_queue.qsize(),
         }
 
     def _count_decisions_by_type(self) -> Dict[str, int]:

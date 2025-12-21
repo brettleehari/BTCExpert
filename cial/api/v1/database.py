@@ -5,10 +5,11 @@ Session 19: Database performance management and monitoring
 Endpoints for database optimization, statistics, and health.
 """
 
-from fastapi import APIRouter, Query
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
-from api.models.responses import VersionedResponse, success_response, error_response
+from fastapi import APIRouter, Query
+
+from api.models.responses import VersionedResponse, error_response, success_response
 from infrastructure.database_optimizer import get_database_optimizer
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
@@ -38,8 +39,7 @@ async def create_indexes() -> VersionedResponse[Dict[str, Any]]:
         created = await optimizer.create_performance_indexes()
 
         return success_response(
-            data={"indexes_created": created},
-            message=f"Created {created} performance indexes"
+            data={"indexes_created": created}, message=f"Created {created} performance indexes"
         )
 
     except Exception as e:
@@ -47,7 +47,7 @@ async def create_indexes() -> VersionedResponse[Dict[str, Any]]:
         return error_response(
             message="Failed to create indexes",
             error_code="INDEX_CREATION_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -74,7 +74,7 @@ async def create_materialized_views() -> VersionedResponse[Dict[str, Any]]:
 
         return success_response(
             data={"materialized_views_created": created},
-            message=f"Created {created} materialized views"
+            message=f"Created {created} materialized views",
         )
 
     except Exception as e:
@@ -82,17 +82,14 @@ async def create_materialized_views() -> VersionedResponse[Dict[str, Any]]:
         return error_response(
             message="Failed to create materialized views",
             error_code="MATERIALIZED_VIEW_CREATION_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
 @router.post("/optimize/refresh-views")
 @trace_operation("db_refresh_materialized_views")
 async def refresh_materialized_views(
-    concurrent: bool = Query(
-        True,
-        description="Refresh concurrently (doesn't block reads)"
-    )
+    concurrent: bool = Query(True, description="Refresh concurrently (doesn't block reads)")
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Refresh materialized views with latest data.
@@ -111,11 +108,8 @@ async def refresh_materialized_views(
         refreshed = await optimizer.refresh_materialized_views(concurrent=concurrent)
 
         return success_response(
-            data={
-                "views_refreshed": refreshed,
-                "concurrent": concurrent
-            },
-            message=f"Refreshed {refreshed} materialized views"
+            data={"views_refreshed": refreshed, "concurrent": concurrent},
+            message=f"Refreshed {refreshed} materialized views",
         )
 
     except Exception as e:
@@ -123,7 +117,7 @@ async def refresh_materialized_views(
         return error_response(
             message="Failed to refresh materialized views",
             error_code="MATERIALIZED_VIEW_REFRESH_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -131,8 +125,7 @@ async def refresh_materialized_views(
 @trace_operation("db_vacuum_analyze")
 async def vacuum_analyze(
     tables: Optional[List[str]] = Query(
-        None,
-        description="Specific tables to vacuum (None = all tables)"
+        None, description="Specific tables to vacuum (None = all tables)"
     )
 ) -> VersionedResponse[Dict[str, str]]:
     """
@@ -159,16 +152,13 @@ async def vacuum_analyze(
         await optimizer.vacuum_analyze_tables(tables=tables)
 
         return success_response(
-            data={"status": "completed"},
-            message="VACUUM ANALYZE completed successfully"
+            data={"status": "completed"}, message="VACUUM ANALYZE completed successfully"
         )
 
     except Exception as e:
         logger.error(f"VACUUM ANALYZE failed: {e}", exc_info=True)
         return error_response(
-            message="VACUUM ANALYZE failed",
-            error_code="VACUUM_ERROR",
-            details={"error": str(e)}
+            message="VACUUM ANALYZE failed", error_code="VACUUM_ERROR", details={"error": str(e)}
         )
 
 
@@ -208,7 +198,7 @@ async def analyze_query(query: str) -> VersionedResponse[Dict[str, Any]]:
         if not query.strip().upper().startswith("SELECT"):
             return error_response(
                 message="Only SELECT queries are allowed for analysis",
-                error_code="INVALID_QUERY_TYPE"
+                error_code="INVALID_QUERY_TYPE",
             )
 
         optimizer = await get_database_optimizer()
@@ -216,22 +206,17 @@ async def analyze_query(query: str) -> VersionedResponse[Dict[str, Any]]:
 
         if "error" in analysis:
             return error_response(
-                message="Query analysis failed",
-                error_code="QUERY_ANALYSIS_ERROR",
-                details=analysis
+                message="Query analysis failed", error_code="QUERY_ANALYSIS_ERROR", details=analysis
             )
 
-        return success_response(
-            data=analysis,
-            message="Query analyzed successfully"
-        )
+        return success_response(data=analysis, message="Query analyzed successfully")
 
     except Exception as e:
         logger.error(f"Query analysis failed: {e}", exc_info=True)
         return error_response(
             message="Query analysis failed",
             error_code="QUERY_ANALYSIS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -258,7 +243,7 @@ async def get_index_usage() -> VersionedResponse[List[Dict[str, Any]]]:
 
         return success_response(
             data={"indexes": stats, "total_indexes": len(stats)},
-            message="Index usage statistics retrieved"
+            message="Index usage statistics retrieved",
         )
 
     except Exception as e:
@@ -266,7 +251,7 @@ async def get_index_usage() -> VersionedResponse[List[Dict[str, Any]]]:
         return error_response(
             message="Failed to retrieve index usage statistics",
             error_code="INDEX_STATS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -293,8 +278,7 @@ async def get_table_stats() -> VersionedResponse[List[Dict[str, Any]]]:
         stats = await optimizer.get_table_stats()
 
         return success_response(
-            data={"tables": stats, "total_tables": len(stats)},
-            message="Table statistics retrieved"
+            data={"tables": stats, "total_tables": len(stats)}, message="Table statistics retrieved"
         )
 
     except Exception as e:
@@ -302,17 +286,14 @@ async def get_table_stats() -> VersionedResponse[List[Dict[str, Any]]]:
         return error_response(
             message="Failed to retrieve table statistics",
             error_code="TABLE_STATS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
 @router.get("/stats/queries")
 @trace_operation("db_query_stats")
 async def get_query_stats(
-    min_duration_ms: float = Query(
-        0,
-        description="Only show queries slower than this (ms)"
-    )
+    min_duration_ms: float = Query(0, description="Only show queries slower than this (ms)")
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Get query performance statistics.
@@ -342,23 +323,20 @@ async def get_query_stats(
                 data={
                     "slow_queries": slow_queries,
                     "threshold_ms": min_duration_ms,
-                    "count": len(slow_queries)
+                    "count": len(slow_queries),
                 },
-                message=f"Found {len(slow_queries)} slow queries"
+                message=f"Found {len(slow_queries)} slow queries",
             )
         else:
             summary = optimizer.get_query_stats_summary()
-            return success_response(
-                data=summary,
-                message="Query statistics retrieved"
-            )
+            return success_response(data=summary, message="Query statistics retrieved")
 
     except Exception as e:
         logger.error(f"Failed to get query stats: {e}", exc_info=True)
         return error_response(
             message="Failed to retrieve query statistics",
             error_code="QUERY_STATS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -392,9 +370,9 @@ async def database_health() -> VersionedResponse[Dict[str, Any]]:
                 "indexes": len(index_stats),
                 "tables": len(table_stats),
                 "queries_tracked": query_summary.get("total_unique_queries", 0),
-                "avg_query_time_ms": query_summary.get("avg_query_time_ms", 0)
+                "avg_query_time_ms": query_summary.get("avg_query_time_ms", 0),
             },
-            message="Database optimization is healthy"
+            message="Database optimization is healthy",
         )
 
     except Exception as e:
@@ -402,5 +380,5 @@ async def database_health() -> VersionedResponse[Dict[str, Any]]:
         return error_response(
             message="Database health check failed",
             error_code="DB_HEALTH_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )

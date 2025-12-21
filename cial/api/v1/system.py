@@ -5,14 +5,15 @@ Endpoints for system health, resilience metrics, and monitoring
 Version: 1.0 - Production Monitoring
 """
 
-from fastapi import APIRouter, Request
-from typing import Dict, Any
 import time
 from datetime import datetime
+from typing import Any, Dict
 
-from api.models.responses import success_response, VersionedResponse, APIVersion
-from infrastructure.resilience import get_resilience_stats
+from fastapi import APIRouter, Request
+
+from api.models.responses import APIVersion, VersionedResponse, success_response
 from infrastructure.logging_config import logger
+from infrastructure.resilience import get_resilience_stats
 
 router = APIRouter(prefix="/system", tags=["System & Monitoring"])
 
@@ -46,21 +47,17 @@ async def health_check(request: Request):
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "api_version": "1.0.0",
-        "uptime_check": "ok"
+        "uptime_check": "ok",
     }
 
     metadata = {
         "request_id": str(id(request)),
         "processing_time_ms": round((time.time() - start_time) * 1000, 2),
         "path": str(request.url.path),
-        "method": request.method
+        "method": request.method,
     }
 
-    return success_response(
-        data=health_data,
-        version=APIVersion.V1,
-        metadata=metadata
-    )
+    return success_response(data=health_data, version=APIVersion.V1, metadata=metadata)
 
 
 @router.get("/resilience", response_model=VersionedResponse)
@@ -126,7 +123,7 @@ async def get_resilience_metrics(request: Request):
             "total_circuit_breakers": len(resilience_data.get("circuit_breakers", {})),
             "total_bulkheads": len(resilience_data.get("bulkheads", {})),
             "total_health_checks": len(resilience_data.get("health_checks", {})),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         # Count circuit breaker states
@@ -153,10 +150,13 @@ async def get_resilience_metrics(request: Request):
         # Calculate overall system health score
         total_health_checks = len(resilience_data.get("health_checks", {}))
         if total_health_checks > 0:
-            overall_reliability = sum(
-                health_data.get("reliability_score", 0.0)
-                for health_data in resilience_data.get("health_checks", {}).values()
-            ) / total_health_checks
+            overall_reliability = (
+                sum(
+                    health_data.get("reliability_score", 0.0)
+                    for health_data in resilience_data.get("health_checks", {}).values()
+                )
+                / total_health_checks
+            )
             summary["overall_reliability_score"] = round(overall_reliability, 3)
         else:
             summary["overall_reliability_score"] = 1.0
@@ -168,7 +168,7 @@ async def get_resilience_metrics(request: Request):
             "request_id": str(id(request)),
             "processing_time_ms": round((time.time() - start_time) * 1000, 2),
             "path": str(request.url.path),
-            "method": request.method
+            "method": request.method,
         }
 
         logger.info(
@@ -176,14 +176,10 @@ async def get_resilience_metrics(request: Request):
             circuit_breakers=summary["total_circuit_breakers"],
             bulkheads=summary["total_bulkheads"],
             health_checks=summary["total_health_checks"],
-            overall_reliability=summary["overall_reliability_score"]
+            overall_reliability=summary["overall_reliability_score"],
         )
 
-        return success_response(
-            data=resilience_data,
-            version=APIVersion.V1,
-            metadata=metadata
-        )
+        return success_response(data=resilience_data, version=APIVersion.V1, metadata=metadata)
 
     except Exception as e:
         logger.error(f"Failed to get resilience metrics: {e}", exc_info=True)
@@ -214,14 +210,10 @@ async def get_circuit_breakers(request: Request):
     metadata = {
         "request_id": str(id(request)),
         "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-        "count": len(circuit_breakers)
+        "count": len(circuit_breakers),
     }
 
-    return success_response(
-        data=circuit_breakers,
-        version=APIVersion.V1,
-        metadata=metadata
-    )
+    return success_response(data=circuit_breakers, version=APIVersion.V1, metadata=metadata)
 
 
 @router.get("/resilience/bulkheads", response_model=VersionedResponse)
@@ -248,14 +240,10 @@ async def get_bulkheads(request: Request):
     metadata = {
         "request_id": str(id(request)),
         "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-        "count": len(bulkheads)
+        "count": len(bulkheads),
     }
 
-    return success_response(
-        data=bulkheads,
-        version=APIVersion.V1,
-        metadata=metadata
-    )
+    return success_response(data=bulkheads, version=APIVersion.V1, metadata=metadata)
 
 
 @router.get("/resilience/health", response_model=VersionedResponse)
@@ -287,40 +275,33 @@ async def get_health_checks(request: Request):
             h.get("reliability_score", 0.0) for h in health_checks.values()
         ) / len(health_checks)
 
-        avg_success_rate = sum(
-            h.get("success_rate", 0.0) for h in health_checks.values()
-        ) / len(health_checks)
+        avg_success_rate = sum(h.get("success_rate", 0.0) for h in health_checks.values()) / len(
+            health_checks
+        )
 
         aggregate = {
             "total_services": len(health_checks),
             "average_reliability_score": round(avg_reliability, 3),
             "average_success_rate": round(avg_success_rate, 3),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     else:
         aggregate = {
             "total_services": 0,
             "average_reliability_score": 1.0,
             "average_success_rate": 1.0,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
-    response_data = {
-        "services": health_checks,
-        "aggregate": aggregate
-    }
+    response_data = {"services": health_checks, "aggregate": aggregate}
 
     metadata = {
         "request_id": str(id(request)),
         "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-        "count": len(health_checks)
+        "count": len(health_checks),
     }
 
-    return success_response(
-        data=response_data,
-        version=APIVersion.V1,
-        metadata=metadata
-    )
+    return success_response(data=response_data, version=APIVersion.V1, metadata=metadata)
 
 
 @router.get("/metrics", response_model=VersionedResponse)
@@ -342,20 +323,13 @@ async def get_system_metrics(request: Request):
     # Build comprehensive metrics
     metrics = {
         "resilience": resilience_stats,
-        "system": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "api_version": "1.0.0"
-        }
+        "system": {"timestamp": datetime.utcnow().isoformat(), "api_version": "1.0.0"},
     }
 
     metadata = {
         "request_id": str(id(request)),
         "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-        "path": str(request.url.path)
+        "path": str(request.url.path),
     }
 
-    return success_response(
-        data=metrics,
-        version=APIVersion.V1,
-        metadata=metadata
-    )
+    return success_response(data=metrics, version=APIVersion.V1, metadata=metadata)

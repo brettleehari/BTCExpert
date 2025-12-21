@@ -4,6 +4,7 @@ Integration tests for API endpoints
 
 import pytest
 from fastapi.testclient import TestClient
+
 from main import app
 
 client = TestClient(app)
@@ -19,9 +20,9 @@ def test_register_agent():
             "intelligence_types": ["price", "sentiment"],
             "symbols": ["BTC", "ETH"],
             "min_importance": "normal",
-            "real_time": True
+            "real_time": True,
         },
-        "metadata": {"test": "integration"}
+        "metadata": {"test": "integration"},
     }
 
     response = client.post("/api/v1/agents/register", json=agent_data)
@@ -42,10 +43,7 @@ def test_get_agent_status():
     agent_data = {
         "agent_id": "status_test_agent",
         "agent_type": "risk",
-        "capabilities": {
-            "intelligence_types": ["price"],
-            "min_importance": "normal"
-        }
+        "capabilities": {"intelligence_types": ["price"], "min_importance": "normal"},
     }
     client.post("/api/v1/agents/register", json=agent_data)
 
@@ -88,11 +86,8 @@ def test_ingest_intelligence():
     intel_data = {
         "intelligence_type": "price",
         "source": "test_source",
-        "data": {
-            "current_price": 62500.0,
-            "price_change_percentage_24h": 3.5
-        },
-        "symbol": "BTC"
+        "data": {"current_price": 62500.0, "price_change_percentage_24h": 3.5},
+        "symbol": "BTC",
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
@@ -110,12 +105,15 @@ def test_get_intelligence_stream():
     """Test getting intelligence stream via API"""
     # First ingest some intelligence
     for i in range(3):
-        client.post("/api/v1/intelligence/ingest", json={
-            "intelligence_type": "price",
-            "source": "test",
-            "data": {"price": 60000 + i * 100},
-            "symbol": "BTC"
-        })
+        client.post(
+            "/api/v1/intelligence/ingest",
+            json={
+                "intelligence_type": "price",
+                "source": "test",
+                "data": {"price": 60000 + i * 100},
+                "symbol": "BTC",
+            },
+        )
 
     # Now get the stream
     response = client.get("/api/v1/intelligence/stream/price")
@@ -163,11 +161,14 @@ def test_invalid_stream_type():
 def test_unregister_agent():
     """Test unregistering agent via API"""
     # First register
-    client.post("/api/v1/agents/register", json={
-        "agent_id": "delete_test_agent",
-        "agent_type": "market",
-        "capabilities": {"intelligence_types": ["price"]}
-    })
+    client.post(
+        "/api/v1/agents/register",
+        json={
+            "agent_id": "delete_test_agent",
+            "agent_type": "market",
+            "capabilities": {"intelligence_types": ["price"]},
+        },
+    )
 
     # Then unregister
     response = client.delete("/api/v1/agents/delete_test_agent")

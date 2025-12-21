@@ -5,21 +5,18 @@ Long-Term Memory persistence with vector search capabilities
 Version: 2.0 - Production Ready with Resilience Patterns
 """
 
-import asyncpg
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, String, DateTime, JSON, Integer, Float, Boolean, Text
-from typing import Optional, List, Dict, Any
-from datetime import datetime
 import json
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import asyncpg
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
-from infrastructure.resilience import (
-    retry_with_backoff,
-    get_bulkhead,
-    get_health_check
-)
+from infrastructure.resilience import get_bulkhead, get_health_check, retry_with_backoff
 
 # SQLAlchemy Base
 Base = declarative_base()
@@ -29,6 +26,7 @@ class IntelligenceRecord(Base):
     """
     SQLAlchemy model for intelligence records in PostgreSQL.
     """
+
     __tablename__ = "intelligence_records"
 
     id = Column(String, primary_key=True)
@@ -54,6 +52,7 @@ class AgentRecord(Base):
     """
     SQLAlchemy model for agent registration records.
     """
+
     __tablename__ = "agent_records"
 
     agent_id = Column(String, primary_key=True)
@@ -107,9 +106,7 @@ class PostgresManager:
 
             # Create session maker
             self._session_maker = async_sessionmaker(
-                self._engine,
-                class_=AsyncSession,
-                expire_on_commit=False
+                self._engine, class_=AsyncSession, expire_on_commit=False
             )
 
             # Create connection pool
@@ -139,7 +136,7 @@ class PostgresManager:
                 "PostgreSQL connected successfully with resilience patterns",
                 host=settings.POSTGRES_HOST,
                 port=settings.POSTGRES_PORT,
-                database=settings.POSTGRES_DB
+                database=settings.POSTGRES_DB,
             )
 
         except Exception as e:
@@ -312,7 +309,9 @@ class PostgresManager:
 
     # Intelligence Storage
 
-    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=10, exceptions=(asyncpg.PostgresError, Exception))
+    @retry_with_backoff(
+        max_attempts=3, min_wait=1, max_wait=10, exceptions=(asyncpg.PostgresError, Exception)
+    )
     async def store_intelligence(
         self,
         intelligence_id: str,
@@ -324,7 +323,7 @@ class PostgresManager:
         meta_data: Optional[Dict[str, Any]] = None,
         timestamp: Optional[datetime] = None,
         validated: bool = False,
-        routed_to_count: int = 0
+        routed_to_count: int = 0,
     ) -> bool:
         """
         Store intelligence record in long-term memory.
@@ -363,7 +362,7 @@ class PostgresManager:
                         timestamp=timestamp or datetime.utcnow(),
                         validated=validated,
                         routed_to_count=routed_to_count,
-                        accessed_count=0
+                        accessed_count=0,
                     )
 
                     session.add(record)
@@ -372,9 +371,7 @@ class PostgresManager:
                     self.health.record_success()
 
                     logger.debug(
-                        f"Intelligence stored in LTM",
-                        id=intelligence_id,
-                        type=intelligence_type
+                        f"Intelligence stored in LTM", id=intelligence_id, type=intelligence_type
                     )
 
                     return True
@@ -384,7 +381,9 @@ class PostgresManager:
             logger.error(f"Failed to store intelligence: {e}", exc_info=True)
             return False
 
-    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    @retry_with_backoff(
+        max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception)
+    )
     async def get_intelligence(self, intelligence_id: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve intelligence record by ID.
@@ -407,7 +406,7 @@ class PostgresManager:
                         SELECT * FROM intelligence_records
                         WHERE id = $1
                         """,
-                        intelligence_id
+                        intelligence_id,
                     )
 
                     if row:
@@ -420,7 +419,7 @@ class PostgresManager:
                             WHERE id = $2
                             """,
                             datetime.utcnow(),
-                            intelligence_id
+                            intelligence_id,
                         )
 
                         self.health.record_success()
@@ -433,7 +432,9 @@ class PostgresManager:
             logger.error(f"Failed to get intelligence: {e}", exc_info=True)
             return None
 
-    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    @retry_with_backoff(
+        max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception)
+    )
     async def query_intelligence(
         self,
         intelligence_type: Optional[str] = None,
@@ -442,7 +443,7 @@ class PostgresManager:
         source: Optional[str] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
         Query intelligence records with filters.
@@ -529,9 +530,7 @@ class PostgresManager:
         try:
             async with self._pool.acquire() as conn:
                 # Total intelligence count
-                total = await conn.fetchval(
-                    "SELECT COUNT(*) FROM intelligence_records"
-                )
+                total = await conn.fetchval("SELECT COUNT(*) FROM intelligence_records")
 
                 # Count by type
                 by_type = await conn.fetch(
@@ -550,9 +549,9 @@ class PostgresManager:
 
                 return {
                     "total_records": total,
-                    "by_type": {row['type']: row['count'] for row in by_type},
-                    "by_importance": {row['importance']: row['count'] for row in by_importance},
-                    "last_24_hours": recent_24h
+                    "by_type": {row["type"]: row["count"] for row in by_type},
+                    "by_importance": {row["importance"]: row["count"] for row in by_importance},
+                    "last_24_hours": recent_24h,
                 }
 
         except Exception as e:
@@ -568,7 +567,7 @@ class PostgresManager:
         capabilities: Dict[str, Any],
         status: str,
         registered_at: datetime,
-        meta_data: Optional[Dict[str, Any]] = None
+        meta_data: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """
         Store agent registration in long-term memory.
@@ -594,7 +593,7 @@ class PostgresManager:
                     registered_at=registered_at,
                     last_active=registered_at,
                     total_messages_received=0,
-                    meta_data=meta_data or {}
+                    meta_data=meta_data or {},
                 )
 
                 session.add(record)
@@ -619,8 +618,7 @@ class PostgresManager:
             async with self._pool.acquire() as conn:
                 version = await conn.fetchval("SELECT version()")
                 db_size = await conn.fetchval(
-                    "SELECT pg_size_pretty(pg_database_size($1))",
-                    settings.POSTGRES_DB
+                    "SELECT pg_size_pretty(pg_database_size($1))", settings.POSTGRES_DB
                 )
 
                 return {
@@ -628,7 +626,7 @@ class PostgresManager:
                     "version": version,
                     "database_size": db_size,
                     "host": settings.POSTGRES_HOST,
-                    "port": settings.POSTGRES_PORT
+                    "port": settings.POSTGRES_PORT,
                 }
 
         except Exception as e:
@@ -639,7 +637,9 @@ class PostgresManager:
     # TIMESCALEDB TIME-SERIES QUERIES
     # ========================================================================
 
-    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    @retry_with_backoff(
+        max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception)
+    )
     async def get_time_series_data(
         self,
         symbol: Optional[str] = None,
@@ -647,7 +647,7 @@ class PostgresManager:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         interval: str = "1 hour",
-        limit: int = 1000
+        limit: int = 1000,
     ) -> List[Dict[str, Any]]:
         """
         Get time-bucketed intelligence data using TimescaleDB.
@@ -725,12 +725,14 @@ class PostgresManager:
             logger.error(f"Failed to get time-series data: {e}", exc_info=True)
             return []
 
-    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    @retry_with_backoff(
+        max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception)
+    )
     async def get_hourly_stats(
         self,
         symbol: Optional[str] = None,
         intelligence_type: Optional[str] = None,
-        hours_back: int = 24
+        hours_back: int = 24,
     ) -> List[Dict[str, Any]]:
         """
         Get pre-computed hourly statistics from continuous aggregate.
@@ -787,11 +789,11 @@ class PostgresManager:
             logger.error(f"Failed to get hourly stats: {e}", exc_info=True)
             return []
 
-    @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception))
+    @retry_with_backoff(
+        max_attempts=3, min_wait=1, max_wait=5, exceptions=(asyncpg.PostgresError, Exception)
+    )
     async def get_daily_stats(
-        self,
-        intelligence_type: Optional[str] = None,
-        days_back: int = 30
+        self, intelligence_type: Optional[str] = None, days_back: int = 30
     ) -> List[Dict[str, Any]]:
         """
         Get pre-computed daily statistics from continuous aggregate.
@@ -882,7 +884,7 @@ class PostgresManager:
                 return {
                     "compression_stats": [dict(row) for row in compression_stats],
                     "chunk_stats": dict(chunk_stats) if chunk_stats else {},
-                    "timescaledb_enabled": True
+                    "timescaledb_enabled": True,
                 }
 
         except Exception as e:
@@ -917,7 +919,7 @@ class PostgresManager:
                     LIMIT $2
                     """,
                     f"{hours} hours",
-                    limit
+                    limit,
                 )
 
                 # Top intelligence types
@@ -935,7 +937,7 @@ class PostgresManager:
                     LIMIT $2
                     """,
                     f"{hours} hours",
-                    limit
+                    limit,
                 )
 
                 # Message volume over time (15-minute buckets)
@@ -949,14 +951,14 @@ class PostgresManager:
                     GROUP BY bucket
                     ORDER BY bucket DESC
                     """,
-                    f"{hours} hours"
+                    f"{hours} hours",
                 )
 
                 return {
                     "period_hours": hours,
                     "top_symbols": [dict(row) for row in top_symbols],
                     "top_types": [dict(row) for row in top_types],
-                    "volume_timeline": [dict(row) for row in volume_timeline]
+                    "volume_timeline": [dict(row) for row in volume_timeline],
                 }
 
         except Exception as e:

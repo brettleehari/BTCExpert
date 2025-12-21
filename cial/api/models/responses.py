@@ -5,23 +5,25 @@ Versioned response wrappers for backward compatibility
 Version: 2.0 - Migrated to Pydantic V2
 """
 
-from typing import Generic, TypeVar, Optional, Dict, Any, List
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 
+from pydantic import BaseModel, ConfigDict, Field
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class APIVersion(str, Enum):
     """API version identifiers"""
+
     V1 = "1.0"
     V2 = "2.0"
 
 
 class ResponseStatus(str, Enum):
     """Standard response status codes"""
+
     SUCCESS = "success"
     ERROR = "error"
     PARTIAL = "partial"
@@ -45,24 +47,17 @@ class VersionedResponse(BaseModel, Generic[T]):
             }
         }
     """
+
     version: APIVersion = Field(
-        default=APIVersion.V1,
-        description="API version used for this response"
+        default=APIVersion.V1, description="API version used for this response"
     )
-    status: ResponseStatus = Field(
-        default=ResponseStatus.SUCCESS,
-        description="Response status"
-    )
-    data: T = Field(
-        description="Response payload"
-    )
+    status: ResponseStatus = Field(default=ResponseStatus.SUCCESS, description="Response status")
+    data: T = Field(description="Response payload")
     metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Response metadata (timestamp, request_id, etc.)"
+        default_factory=dict, description="Response metadata (timestamp, request_id, etc.)"
     )
     errors: Optional[List[Dict[str, Any]]] = Field(
-        default=None,
-        description="Error details if status is error or partial"
+        default=None, description="Error details if status is error or partial"
     )
 
     model_config = ConfigDict(
@@ -74,8 +69,8 @@ class VersionedResponse(BaseModel, Generic[T]):
                 "metadata": {
                     "timestamp": "2024-01-15T10:30:00Z",
                     "request_id": "abc123",
-                    "processing_time_ms": 45
-                }
+                    "processing_time_ms": 45,
+                },
             }
         }
     )
@@ -98,24 +93,12 @@ class PaginatedResponse(BaseModel, Generic[T]):
             }
         }
     """
-    version: APIVersion = Field(
-        default=APIVersion.V1,
-        description="API version"
-    )
-    status: ResponseStatus = Field(
-        default=ResponseStatus.SUCCESS,
-        description="Response status"
-    )
-    data: List[T] = Field(
-        description="List of items"
-    )
-    pagination: Dict[str, int] = Field(
-        description="Pagination metadata"
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Response metadata"
-    )
+
+    version: APIVersion = Field(default=APIVersion.V1, description="API version")
+    status: ResponseStatus = Field(default=ResponseStatus.SUCCESS, description="Response status")
+    data: List[T] = Field(description="List of items")
+    pagination: Dict[str, int] = Field(description="Pagination metadata")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Response metadata")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -129,8 +112,8 @@ class PaginatedResponse(BaseModel, Generic[T]):
                     "page_size": 20,
                     "total_pages": 5,
                     "has_next": True,
-                    "has_previous": False
-                }
+                    "has_previous": False,
+                },
             }
         }
     )
@@ -155,21 +138,13 @@ class ErrorResponse(BaseModel):
             }
         }
     """
-    version: APIVersion = Field(
-        default=APIVersion.V1,
-        description="API version"
-    )
+
+    version: APIVersion = Field(default=APIVersion.V1, description="API version")
     status: ResponseStatus = Field(
-        default=ResponseStatus.ERROR,
-        description="Always 'error' for error responses"
+        default=ResponseStatus.ERROR, description="Always 'error' for error responses"
     )
-    error: Dict[str, Any] = Field(
-        description="Error details"
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Response metadata"
-    )
+    error: Dict[str, Any] = Field(description="Error details")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Response metadata")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -179,12 +154,9 @@ class ErrorResponse(BaseModel):
                 "error": {
                     "code": "VALIDATION_ERROR",
                     "message": "Invalid input data",
-                    "details": {"field": "symbol", "error": "Required field missing"}
+                    "details": {"field": "symbol", "error": "Required field missing"},
                 },
-                "metadata": {
-                    "timestamp": "2024-01-15T10:30:00Z",
-                    "request_id": "abc123"
-                }
+                "metadata": {"timestamp": "2024-01-15T10:30:00Z", "request_id": "abc123"},
             }
         }
     )
@@ -192,10 +164,9 @@ class ErrorResponse(BaseModel):
 
 # Response builder utilities
 
+
 def success_response(
-    data: Any,
-    version: APIVersion = APIVersion.V1,
-    metadata: Optional[Dict[str, Any]] = None
+    data: Any, version: APIVersion = APIVersion.V1, metadata: Optional[Dict[str, Any]] = None
 ) -> VersionedResponse:
     """
     Build a successful versioned response.
@@ -209,13 +180,10 @@ def success_response(
         VersionedResponse with success status
     """
     response_metadata = metadata or {}
-    response_metadata['timestamp'] = datetime.utcnow().isoformat()
+    response_metadata["timestamp"] = datetime.utcnow().isoformat()
 
     return VersionedResponse(
-        version=version,
-        status=ResponseStatus.SUCCESS,
-        data=data,
-        metadata=response_metadata
+        version=version, status=ResponseStatus.SUCCESS, data=data, metadata=response_metadata
     )
 
 
@@ -224,7 +192,7 @@ def error_response(
     error_message: str,
     details: Optional[Dict[str, Any]] = None,
     version: APIVersion = APIVersion.V1,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> ErrorResponse:
     """
     Build an error response.
@@ -240,17 +208,13 @@ def error_response(
         ErrorResponse with error details
     """
     response_metadata = metadata or {}
-    response_metadata['timestamp'] = datetime.utcnow().isoformat()
+    response_metadata["timestamp"] = datetime.utcnow().isoformat()
 
     return ErrorResponse(
         version=version,
         status=ResponseStatus.ERROR,
-        error={
-            "code": error_code,
-            "message": error_message,
-            "details": details or {}
-        },
-        metadata=response_metadata
+        error={"code": error_code, "message": error_message, "details": details or {}},
+        metadata=response_metadata,
     )
 
 
@@ -260,7 +224,7 @@ def paginated_response(
     page: int,
     page_size: int,
     version: APIVersion = APIVersion.V1,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> PaginatedResponse:
     """
     Build a paginated response.
@@ -277,7 +241,7 @@ def paginated_response(
         PaginatedResponse with pagination metadata
     """
     response_metadata = metadata or {}
-    response_metadata['timestamp'] = datetime.utcnow().isoformat()
+    response_metadata["timestamp"] = datetime.utcnow().isoformat()
 
     total_pages = (total + page_size - 1) // page_size  # Ceiling division
 
@@ -291,7 +255,7 @@ def paginated_response(
             "page_size": page_size,
             "total_pages": total_pages,
             "has_next": page < total_pages,
-            "has_previous": page > 1
+            "has_previous": page > 1,
         },
-        metadata=response_metadata
+        metadata=response_metadata,
     )

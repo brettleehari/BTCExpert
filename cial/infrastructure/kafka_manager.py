@@ -3,16 +3,17 @@ CIAL Kafka Manager
 Event streaming for real-time intelligence distribution to agents
 """
 
-from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
-from kafka.admin import NewTopic
-from kafka.errors import KafkaError, TopicAlreadyExistsError
-from typing import Optional, Dict, Any, List
 import json
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+from kafka import KafkaAdminClient, KafkaConsumer, KafkaProducer
+from kafka.admin import NewTopic
+from kafka.errors import KafkaError, TopicAlreadyExistsError
+
+from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
-from api.models.intelligence import IntelligenceMessage, IntelligenceType, IntelligenceImportance
 
 
 class KafkaManager:
@@ -37,25 +38,23 @@ class KafkaManager:
             # Create producer with JSON serialization
             self._producer = KafkaProducer(
                 bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                key_serializer=lambda k: k.encode('utf-8') if k else None,
-                acks='all',  # Wait for all replicas
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                key_serializer=lambda k: k.encode("utf-8") if k else None,
+                acks="all",  # Wait for all replicas
                 retries=3,
                 max_in_flight_requests_per_connection=1,  # Ensure ordering
-                compression_type='gzip'
+                compression_type="gzip",
             )
 
             # Create admin client for topic management
             self._admin_client = KafkaAdminClient(
-                bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
-                client_id='cial-admin'
+                bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS, client_id="cial-admin"
             )
 
             self._connected = True
 
             logger.info(
-                "Kafka connected successfully",
-                bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS
+                "Kafka connected successfully", bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS
             )
 
             # Create default topics
@@ -84,7 +83,6 @@ class KafkaManager:
             NewTopic(name="intelligence.critical", num_partitions=3, replication_factor=1),
             NewTopic(name="intelligence.normal", num_partitions=3, replication_factor=1),
             NewTopic(name="intelligence.low", num_partitions=2, replication_factor=1),
-
             # Type-specific topics
             NewTopic(name="price.critical", num_partitions=2, replication_factor=1),
             NewTopic(name="price.normal", num_partitions=2, replication_factor=1),
@@ -104,9 +102,7 @@ class KafkaManager:
             logger.warning(f"Failed to create some topics: {e}")
 
     def publish_intelligence(
-        self,
-        message: IntelligenceMessage,
-        topics: Optional[List[str]] = None
+        self, message: IntelligenceMessage, topics: Optional[List[str]] = None
     ) -> bool:
         """
         Publish intelligence message to Kafka topics.
@@ -129,18 +125,14 @@ class KafkaManager:
 
             # Serialize message
             message_dict = message.model_dump()
-            message_dict['timestamp'] = message.timestamp.isoformat()
+            message_dict["timestamp"] = message.timestamp.isoformat()
 
             # Use message ID as key for partitioning
             key = message.id
 
             # Publish to all topics
             for topic in topics:
-                future = self._producer.send(
-                    topic=topic,
-                    key=key,
-                    value=message_dict
-                )
+                future = self._producer.send(topic=topic, key=key, value=message_dict)
 
                 # Add callback for error handling
                 future.add_callback(self._on_send_success, topic, message.id)
@@ -154,7 +146,7 @@ class KafkaManager:
                 message_id=message.id,
                 topics=topics,
                 type=message.type.value,
-                importance=message.importance.value
+                importance=message.importance.value,
             )
 
             return True
@@ -200,23 +192,15 @@ class KafkaManager:
             topic=topic,
             partition=record_metadata.partition,
             offset=record_metadata.offset,
-            message_id=message_id
+            message_id=message_id,
         )
 
     def _on_send_error(self, excp, topic: str, message_id: str):
         """Callback for failed message send."""
-        logger.error(
-            f"Failed to send message",
-            topic=topic,
-            message_id=message_id,
-            error=str(excp)
-        )
+        logger.error(f"Failed to send message", topic=topic, message_id=message_id, error=str(excp))
 
     def create_topic(
-        self,
-        topic_name: str,
-        num_partitions: int = 2,
-        replication_factor: int = 1
+        self, topic_name: str, num_partitions: int = 2, replication_factor: int = 1
     ) -> bool:
         """
         Create a new Kafka topic.
@@ -233,7 +217,7 @@ class KafkaManager:
             new_topic = NewTopic(
                 name=topic_name,
                 num_partitions=num_partitions,
-                replication_factor=replication_factor
+                replication_factor=replication_factor,
             )
 
             self._admin_client.create_topics([new_topic], validate_only=False)
@@ -262,10 +246,7 @@ class KafkaManager:
             return []
 
     def create_consumer(
-        self,
-        topics: List[str],
-        group_id: str,
-        auto_offset_reset: str = 'latest'
+        self, topics: List[str], group_id: str, auto_offset_reset: str = "latest"
     ) -> Optional[KafkaConsumer]:
         """
         Create a Kafka consumer for specified topics.
@@ -284,17 +265,13 @@ class KafkaManager:
                 bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
                 group_id=group_id,
                 auto_offset_reset=auto_offset_reset,
-                value_deserializer=lambda v: json.loads(v.decode('utf-8')),
-                key_deserializer=lambda k: k.decode('utf-8') if k else None,
+                value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+                key_deserializer=lambda k: k.decode("utf-8") if k else None,
                 enable_auto_commit=True,
-                max_poll_records=100
+                max_poll_records=100,
             )
 
-            logger.info(
-                f"Kafka consumer created",
-                topics=topics,
-                group_id=group_id
-            )
+            logger.info(f"Kafka consumer created", topics=topics, group_id=group_id)
 
             return consumer
 
@@ -317,7 +294,7 @@ class KafkaManager:
                 "connected": True,
                 "bootstrap_servers": settings.KAFKA_BOOTSTRAP_SERVERS,
                 "total_topics": len(topics),
-                "topics": topics
+                "topics": topics,
             }
         except Exception as e:
             logger.error(f"Failed to get Kafka info: {e}")

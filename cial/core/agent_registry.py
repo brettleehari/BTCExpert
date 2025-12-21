@@ -3,13 +3,18 @@ CIAL Agent Registry
 Service for agent registration, discovery, and lifecycle management
 """
 
-from typing import Dict, List, Optional
 from datetime import datetime
+from typing import Dict, List, Optional
+
 from api.models.intelligence import (
-    Agent, AgentRegistration, AgentStatus, AgentType,
-    IntelligenceType, AgentCapabilities
+    Agent,
+    AgentCapabilities,
+    AgentRegistration,
+    AgentStatus,
+    AgentType,
+    IntelligenceType,
 )
-from infrastructure.logging_config import logger, log_agent_activity
+from infrastructure.logging_config import log_agent_activity, logger
 
 
 class AgentRegistry:
@@ -52,7 +57,7 @@ class AgentRegistry:
             agent_type=registration.agent_type,
             capabilities=registration.capabilities,
             status=AgentStatus.ACTIVE,
-            metadata=registration.metadata
+            metadata=registration.metadata,
         )
 
         # Store agent
@@ -66,13 +71,13 @@ class AgentRegistry:
             agent_id=agent.agent_id,
             action="registered",
             agent_type=agent.agent_type.value,
-            capabilities=len(agent.capabilities.intelligence_types)
+            capabilities=len(agent.capabilities.intelligence_types),
         )
 
         logger.info(
             f"Agent registered: {agent.agent_id}",
             agent_type=agent.agent_type.value,
-            intelligence_types=agent.capabilities.intelligence_types
+            intelligence_types=agent.capabilities.intelligence_types,
         )
 
         return agent
@@ -99,10 +104,7 @@ class AgentRegistry:
         # Remove agent
         del self._agents[agent_id]
 
-        log_agent_activity(
-            agent_id=agent_id,
-            action="unregistered"
-        )
+        log_agent_activity(agent_id=agent_id, action="unregistered")
 
         logger.info(f"Agent unregistered: {agent_id}")
 
@@ -120,7 +122,9 @@ class AgentRegistry:
         """
         return self._agents.get(agent_id)
 
-    def update_agent_status(self, agent_id: str, status: AgentStatus, metadata: Optional[Dict] = None) -> bool:
+    def update_agent_status(
+        self, agent_id: str, status: AgentStatus, metadata: Optional[Dict] = None
+    ) -> bool:
         """
         Update agent status.
 
@@ -147,13 +151,13 @@ class AgentRegistry:
             agent_id=agent_id,
             action="status_updated",
             old_status=old_status.value,
-            new_status=status.value
+            new_status=status.value,
         )
 
         logger.info(
             f"Agent status updated: {agent_id}",
             old_status=old_status.value,
-            new_status=status.value
+            new_status=status.value,
         )
 
         return True
@@ -199,7 +203,9 @@ class AgentRegistry:
         agent_ids = self._type_index.get(agent_type, [])
         return [self._agents[aid] for aid in agent_ids if aid in self._agents]
 
-    def get_agents_for_intelligence(self, intelligence_type: IntelligenceType, symbol: Optional[str] = None) -> List[Agent]:
+    def get_agents_for_intelligence(
+        self, intelligence_type: IntelligenceType, symbol: Optional[str] = None
+    ) -> List[Agent]:
         """
         Find agents that should receive specific intelligence.
 
@@ -256,7 +262,7 @@ class AgentRegistry:
             "active_agents": self.get_active_agent_count(),
             "status_breakdown": status_counts,
             "type_breakdown": type_counts,
-            "total_messages_delivered": sum(agent.message_count for agent in self._agents.values())
+            "total_messages_delivered": sum(agent.message_count for agent in self._agents.values()),
         }
 
     # Internal index management methods

@@ -3,9 +3,13 @@ Unit tests for Agent Registry
 """
 
 import pytest
+
 from api.models.intelligence import (
-    AgentRegistration, AgentCapabilities, AgentType,
-    IntelligenceType, AgentStatus
+    AgentCapabilities,
+    AgentRegistration,
+    AgentStatus,
+    AgentType,
+    IntelligenceType,
 )
 from core.agent_registry import AgentRegistry
 
@@ -25,9 +29,9 @@ def sample_registration():
         capabilities=AgentCapabilities(
             intelligence_types=[IntelligenceType.PRICE, IntelligenceType.SENTIMENT],
             symbols=["BTC", "ETH"],
-            min_importance="normal"
+            min_importance="normal",
         ),
-        metadata={"version": "1.0.0"}
+        metadata={"version": "1.0.0"},
     )
 
 
@@ -80,9 +84,7 @@ def test_update_agent_status(registry, sample_registration):
     registry.register_agent(sample_registration)
 
     success = registry.update_agent_status(
-        "test_agent_001",
-        AgentStatus.PAUSED,
-        {"reason": "maintenance"}
+        "test_agent_001", AgentStatus.PAUSED, {"reason": "maintenance"}
     )
 
     assert success is True
@@ -94,23 +96,29 @@ def test_update_agent_status(registry, sample_registration):
 def test_get_agents_by_type(registry):
     """Test filtering agents by type"""
     # Register multiple agents
-    registry.register_agent(AgentRegistration(
-        agent_id="trading_001",
-        agent_type=AgentType.TRADING,
-        capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE])
-    ))
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="trading_001",
+            agent_type=AgentType.TRADING,
+            capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE]),
+        )
+    )
 
-    registry.register_agent(AgentRegistration(
-        agent_id="risk_001",
-        agent_type=AgentType.RISK,
-        capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE])
-    ))
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="risk_001",
+            agent_type=AgentType.RISK,
+            capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE]),
+        )
+    )
 
-    registry.register_agent(AgentRegistration(
-        agent_id="trading_002",
-        agent_type=AgentType.TRADING,
-        capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.SENTIMENT])
-    ))
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="trading_002",
+            agent_type=AgentType.TRADING,
+            capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.SENTIMENT]),
+        )
+    )
 
     trading_agents = registry.get_agents_by_type(AgentType.TRADING)
     assert len(trading_agents) == 2
@@ -121,23 +129,25 @@ def test_get_agents_by_type(registry):
 
 def test_get_agents_for_intelligence(registry):
     """Test finding agents interested in specific intelligence"""
-    registry.register_agent(AgentRegistration(
-        agent_id="price_agent",
-        agent_type=AgentType.TRADING,
-        capabilities=AgentCapabilities(
-            intelligence_types=[IntelligenceType.PRICE],
-            symbols=["BTC"]
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="price_agent",
+            agent_type=AgentType.TRADING,
+            capabilities=AgentCapabilities(
+                intelligence_types=[IntelligenceType.PRICE], symbols=["BTC"]
+            ),
         )
-    ))
+    )
 
-    registry.register_agent(AgentRegistration(
-        agent_id="sentiment_agent",
-        agent_type=AgentType.SENTIMENT,
-        capabilities=AgentCapabilities(
-            intelligence_types=[IntelligenceType.SENTIMENT],
-            symbols=[]  # All symbols
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="sentiment_agent",
+            agent_type=AgentType.SENTIMENT,
+            capabilities=AgentCapabilities(
+                intelligence_types=[IntelligenceType.SENTIMENT], symbols=[]  # All symbols
+            ),
         )
-    ))
+    )
 
     # Find agents for BTC price
     price_agents = registry.get_agents_for_intelligence(IntelligenceType.PRICE, "BTC")
@@ -155,17 +165,21 @@ def test_get_agents_for_intelligence(registry):
 
 def test_get_active_agent_count(registry):
     """Test counting active agents"""
-    registry.register_agent(AgentRegistration(
-        agent_id="agent_1",
-        agent_type=AgentType.TRADING,
-        capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE])
-    ))
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="agent_1",
+            agent_type=AgentType.TRADING,
+            capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE]),
+        )
+    )
 
-    registry.register_agent(AgentRegistration(
-        agent_id="agent_2",
-        agent_type=AgentType.RISK,
-        capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE])
-    ))
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="agent_2",
+            agent_type=AgentType.RISK,
+            capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE]),
+        )
+    )
 
     assert registry.get_active_agent_count() == 2
 
@@ -177,17 +191,21 @@ def test_get_active_agent_count(registry):
 def test_get_registry_stats(registry):
     """Test registry statistics"""
     # Register multiple agents
-    registry.register_agent(AgentRegistration(
-        agent_id="agent_1",
-        agent_type=AgentType.TRADING,
-        capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE])
-    ))
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="agent_1",
+            agent_type=AgentType.TRADING,
+            capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.PRICE]),
+        )
+    )
 
-    registry.register_agent(AgentRegistration(
-        agent_id="agent_2",
-        agent_type=AgentType.RISK,
-        capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.SENTIMENT])
-    ))
+    registry.register_agent(
+        AgentRegistration(
+            agent_id="agent_2",
+            agent_type=AgentType.RISK,
+            capabilities=AgentCapabilities(intelligence_types=[IntelligenceType.SENTIMENT]),
+        )
+    )
 
     stats = registry.get_registry_stats()
 

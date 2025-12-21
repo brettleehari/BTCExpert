@@ -13,36 +13,40 @@ Design: Follows Netflix Hystrix patterns for microservice resilience
 Version: 1.0 - Production Ready
 """
 
-from typing import Callable, Any, Optional, Dict, TypeVar, ParamSpec
-from functools import wraps
 import asyncio
-import time
 import logging
+import time
 from datetime import datetime, timedelta
 from enum import Enum
+from functools import wraps
+from typing import Any, Callable, Dict, Optional, ParamSpec, TypeVar
+
 import pybreaker
 from tenacity import (
+    after_log,
+    before_sleep_log,
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-    after_log
 )
+
 from infrastructure.logging_config import logger
 
-P = ParamSpec('P')
-T = TypeVar('T')
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 # ============================================================================
 # CIRCUIT BREAKER PATTERN
 # ============================================================================
 
+
 class CircuitBreakerState(str, Enum):
     """Circuit breaker states"""
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Failing, reject requests
+
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing, reject requests
     HALF_OPEN = "half_open"  # Testing if recovered
 
 
@@ -68,7 +72,7 @@ class CircuitBreakerConfig:
         fail_max: int = 5,
         timeout_duration: int = 60,
         name: str = "default",
-        expected_exception: type = Exception
+        expected_exception: type = Exception,
     ):
         self.fail_max = fail_max
         self.timeout_duration = timeout_duration
@@ -80,7 +84,9 @@ class CircuitBreakerConfig:
 _circuit_breakers: Dict[str, pybreaker.CircuitBreaker] = {}
 
 
-def get_circuit_breaker(name: str, config: Optional[CircuitBreakerConfig] = None) -> pybreaker.CircuitBreaker:
+def get_circuit_breaker(
+    name: str, config: Optional[CircuitBreakerConfig] = None
+) -> pybreaker.CircuitBreaker:
     """
     Get or create a circuit breaker.
 
@@ -107,10 +113,14 @@ def get_circuit_breaker(name: str, config: Optional[CircuitBreakerConfig] = None
             timeout_duration=config.timeout_duration,
             expected_exception=config.expected_exception,
             name=config.name,
-            listeners=[_CircuitBreakerListener()]
+            listeners=[_CircuitBreakerListener()],
         )
         _circuit_breakers[name] = breaker
-        logger.info(f"Circuit breaker created: {name}", fail_max=config.fail_max, timeout=config.timeout_duration)
+        logger.info(
+            f"Circuit breaker created: {name}",
+            fail_max=config.fail_max,
+            timeout=config.timeout_duration,
+        )
 
     return _circuit_breakers[name]
 
@@ -124,7 +134,7 @@ class _CircuitBreakerListener(pybreaker.CircuitBreakerListener):
             f"Circuit breaker state change: {cb.name}",
             old_state=str(old_state),
             new_state=str(new_state),
-            failure_count=cb.fail_counter
+            failure_count=cb.fail_counter,
         )
 
     def failure(self, cb, exc):
@@ -133,7 +143,7 @@ class _CircuitBreakerListener(pybreaker.CircuitBreakerListener):
             f"Circuit breaker failure: {cb.name}",
             exception=str(exc),
             failure_count=cb.fail_counter,
-            state=str(cb.current_state)
+            state=str(cb.current_state),
         )
 
     def success(self, cb):
@@ -143,10 +153,7 @@ class _CircuitBreakerListener(pybreaker.CircuitBreakerListener):
 
 
 def circuit_breaker(
-    name: str,
-    fail_max: int = 5,
-    timeout_duration: int = 60,
-    expected_exception: type = Exception
+    name: str, fail_max: int = 5, timeout_duration: int = 60, expected_exception: type = Exception
 ):
     """
     Decorator to add circuit breaker to a function.
@@ -169,7 +176,7 @@ def circuit_breaker(
         fail_max=fail_max,
         timeout_duration=timeout_duration,
         name=name,
-        expected_exception=expected_exception
+        expected_exception=expected_exception,
     )
     breaker = get_circuit_breaker(name, config)
     return breaker
@@ -179,13 +186,14 @@ def circuit_breaker(
 # RETRY PATTERN WITH EXPONENTIAL BACKOFF
 # ============================================================================
 
+
 def retry_with_backoff(
     max_attempts: int = 5,
     min_wait: int = 1,
     max_wait: int = 60,
     multiplier: int = 2,
     exceptions: tuple = (Exception,),
-    logger_instance = None
+    logger_instance=None,
 ):
     """
     Decorator for retry with exponential backoff.
@@ -216,15 +224,11 @@ def retry_with_backoff(
 
     return retry(
         stop=stop_after_attempt(max_attempts),
-        wait=wait_exponential(
-            multiplier=multiplier,
-            min=min_wait,
-            max=max_wait
-        ),
+        wait=wait_exponential(multiplier=multiplier, min=min_wait, max=max_wait),
         retry=retry_if_exception_type(exceptions),
         before_sleep=before_sleep_log(log, logging.WARNING),
         after=after_log(log, logging.INFO),
-        reraise=True
+        reraise=True,
     )
 
 
@@ -232,8 +236,10 @@ def retry_with_backoff(
 # TIMEOUT PATTERN
 # ============================================================================
 
+
 class TimeoutError(Exception):
     """Raised when operation times out"""
+
     pass
 
 
@@ -256,27 +262,25 @@ def timeout(seconds: float):
         - Ensures predictable response times for SLA
         - Critical for maintaining system responsiveness
     """
+
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
-                return await asyncio.wait_for(
-                    func(*args, **kwargs),
-                    timeout=seconds
-                )
+                return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
             except asyncio.TimeoutError:
-                logger.error(
-                    f"Function timeout: {func.__name__}",
-                    timeout_seconds=seconds
-                )
+                logger.error(f"Function timeout: {func.__name__}", timeout_seconds=seconds)
                 raise TimeoutError(f"{func.__name__} timed out after {seconds}s")
+
         return wrapper
+
     return decorator
 
 
 # ============================================================================
 # BULKHEAD PATTERN (Resource Isolation)
 # ============================================================================
+
 
 class Bulkhead:
     """
@@ -325,10 +329,7 @@ class Bulkhead:
 
         try:
             if self.timeout:
-                await asyncio.wait_for(
-                    self.semaphore.acquire(),
-                    timeout=self.timeout
-                )
+                await asyncio.wait_for(self.semaphore.acquire(), timeout=self.timeout)
             else:
                 await self.semaphore.acquire()
 
@@ -336,14 +337,14 @@ class Bulkhead:
             logger.debug(
                 f"Bulkhead slot acquired: {self.name}",
                 active=self._active_count,
-                max=self.max_concurrent
+                max=self.max_concurrent,
             )
         except asyncio.TimeoutError:
             self._rejected_requests += 1
             logger.error(
                 f"Bulkhead timeout: {self.name}",
                 active=self._active_count,
-                rejected=self._rejected_requests
+                rejected=self._rejected_requests,
             )
             raise TimeoutError(f"Bulkhead {self.name} timeout - too many concurrent operations")
 
@@ -351,10 +352,7 @@ class Bulkhead:
         """Release slot"""
         self._active_count -= 1
         self.semaphore.release()
-        logger.debug(
-            f"Bulkhead slot released: {self.name}",
-            active=self._active_count
-        )
+        logger.debug(f"Bulkhead slot released: {self.name}", active=self._active_count)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get bulkhead statistics"""
@@ -364,7 +362,7 @@ class Bulkhead:
             "active_count": self._active_count,
             "total_requests": self._total_requests,
             "rejected_requests": self._rejected_requests,
-            "rejection_rate": self._rejected_requests / max(self._total_requests, 1)
+            "rejection_rate": self._rejected_requests / max(self._total_requests, 1),
         }
 
 
@@ -399,8 +397,10 @@ def get_bulkhead(name: str, max_concurrent: int = 10, timeout: Optional[float] =
 # HEALTH CHECK PATTERN
 # ============================================================================
 
+
 class HealthStatus(str, Enum):
     """Health check status"""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -475,16 +475,15 @@ class HealthCheck:
             else:
                 # Exponential moving average
                 self.avg_response_time_ms = (
-                    self.ema_alpha * response_time_ms +
-                    (1 - self.ema_alpha) * self.avg_response_time_ms
+                    self.ema_alpha * response_time_ms
+                    + (1 - self.ema_alpha) * self.avg_response_time_ms
                 )
 
             self.max_response_time_ms = max(self.max_response_time_ms, response_time_ms)
 
         # Update reliability score (increase on success)
         self.reliability_score = min(
-            1.0,
-            self.reliability_score * 0.95 + 0.05  # Slowly increase to 1.0
+            1.0, self.reliability_score * 0.95 + 0.05  # Slowly increase to 1.0
         )
 
         logger.debug(f"Health check success: {self.name}", reliability=self.reliability_score)
@@ -497,15 +496,10 @@ class HealthCheck:
         self.last_check = datetime.utcnow()
 
         # Update reliability score (decrease on failure)
-        self.reliability_score = max(
-            0.0,
-            self.reliability_score * 0.9  # Rapidly decrease
-        )
+        self.reliability_score = max(0.0, self.reliability_score * 0.9)  # Rapidly decrease
 
         logger.warning(
-            f"Health check failure: {self.name}",
-            error=error,
-            reliability=self.reliability_score
+            f"Health check failure: {self.name}", error=error, reliability=self.reliability_score
         )
 
     def get_status(self) -> HealthStatus:
@@ -528,11 +522,7 @@ class HealthCheck:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get detailed health statistics"""
-        success_rate = (
-            self.success_count / self.total_requests
-            if self.total_requests > 0
-            else 0.0
-        )
+        success_rate = self.success_count / self.total_requests if self.total_requests > 0 else 0.0
 
         return {
             "name": self.name,
@@ -546,7 +536,7 @@ class HealthCheck:
             "max_response_time_ms": self.max_response_time_ms,
             "last_success": self.last_success.isoformat() if self.last_success else None,
             "last_failure": self.last_failure.isoformat() if self.last_failure else None,
-            "last_check": self.last_check.isoformat() if self.last_check else None
+            "last_check": self.last_check.isoformat() if self.last_check else None,
         }
 
     def reset(self):
@@ -593,6 +583,7 @@ def get_health_check(name: str, threshold_success_rate: float = 0.8) -> HealthCh
 # RESILIENCE STATISTICS
 # ============================================================================
 
+
 def get_resilience_stats() -> Dict[str, Any]:
     """
     Get statistics for all resilience components.
@@ -612,16 +603,10 @@ def get_resilience_stats() -> Dict[str, Any]:
                 "state": str(cb.current_state),
                 "fail_count": cb.fail_counter,
                 "fail_max": cb.fail_max,
-                "timeout_duration": cb.timeout_duration
+                "timeout_duration": cb.timeout_duration,
             }
             for name, cb in _circuit_breakers.items()
         },
-        "bulkheads": {
-            name: bulkhead.get_stats()
-            for name, bulkhead in _bulkheads.items()
-        },
-        "health_checks": {
-            name: health.get_stats()
-            for name, health in _health_checks.items()
-        }
+        "bulkheads": {name: bulkhead.get_stats() for name, bulkhead in _bulkheads.items()},
+        "health_checks": {name: health.get_stats() for name, health in _health_checks.items()},
     }

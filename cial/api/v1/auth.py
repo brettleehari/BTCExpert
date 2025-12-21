@@ -5,24 +5,25 @@ Session 20: JWT authentication and API key management
 Endpoints for token generation, API key creation, and security management.
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends, Query
-from typing import Optional, Dict, Any, List
 from datetime import timedelta
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
-from api.models.responses import VersionedResponse, success_response, error_response
-from infrastructure.security import (
-    get_security_manager,
-    SecurityManager,
-    APIKeyType,
-    TokenData,
-    get_current_user,
-    verify_api_key,
-    APIKey
-)
-from infrastructure.rate_limiter import limiter, RateLimits
+from api.models.responses import VersionedResponse, error_response, success_response
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
+from infrastructure.rate_limiter import RateLimits, limiter
+from infrastructure.security import (
+    APIKey,
+    APIKeyType,
+    SecurityManager,
+    TokenData,
+    get_current_user,
+    get_security_manager,
+    verify_api_key,
+)
 
 router = APIRouter()
 
@@ -30,6 +31,7 @@ router = APIRouter()
 # Request/Response models
 class TokenRequest(BaseModel):
     """Request model for token creation."""
+
     username: str
     password: Optional[str] = None  # For demo purposes
     scopes: List[str] = []
@@ -37,6 +39,7 @@ class TokenRequest(BaseModel):
 
 class APIKeyRequest(BaseModel):
     """Request model for API key creation."""
+
     name: str
     type: APIKeyType = APIKeyType.READ_ONLY
     rate_limit: int = 100
@@ -74,19 +77,16 @@ async def create_token(request: TokenRequest) -> VersionedResponse[Dict[str, str
 
         # Create token
         token = security_manager.create_access_token(
-            data={
-                "sub": request.username,
-                "scopes": request.scopes
-            }
+            data={"sub": request.username, "scopes": request.scopes}
         )
 
         return success_response(
             data={
                 "access_token": token,
                 "token_type": "bearer",
-                "expires_in_minutes": 1440  # 24 hours
+                "expires_in_minutes": 1440,  # 24 hours
             },
-            message="Token created successfully"
+            message="Token created successfully",
         )
 
     except Exception as e:
@@ -94,14 +94,14 @@ async def create_token(request: TokenRequest) -> VersionedResponse[Dict[str, str
         return error_response(
             message="Failed to create token",
             error_code="TOKEN_CREATION_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
 @router.get("/verify")
 @trace_operation("auth_verify_token")
 async def verify_token(
-    user: TokenData = Depends(get_current_user)
+    user: TokenData = Depends(get_current_user),
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Verify JWT token and return decoded data.
@@ -122,18 +122,16 @@ async def verify_token(
             "username": user.username,
             "api_key": user.api_key[:20] + "..." if user.api_key else None,
             "scopes": user.scopes,
-            "valid": True
+            "valid": True,
         },
-        message="Token is valid"
+        message="Token is valid",
     )
 
 
 @router.post("/api-key")
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_create_api_key")
-async def create_api_key(
-    request: APIKeyRequest
-) -> VersionedResponse[Dict[str, Any]]:
+async def create_api_key(request: APIKeyRequest) -> VersionedResponse[Dict[str, Any]]:
     """
     Create a new API key.
 
@@ -170,7 +168,7 @@ async def create_api_key(
             name=request.name,
             key_type=request.type,
             rate_limit=request.rate_limit,
-            metadata=request.metadata
+            metadata=request.metadata,
         )
 
         return success_response(
@@ -180,9 +178,9 @@ async def create_api_key(
                 "type": api_key_obj.type.value,
                 "rate_limit": api_key_obj.rate_limit,
                 "created_at": api_key_obj.created_at.isoformat(),
-                "warning": "⚠️ Store this API key securely. It cannot be retrieved again!"
+                "warning": "⚠️ Store this API key securely. It cannot be retrieved again!",
             },
-            message="API key created successfully"
+            message="API key created successfully",
         )
 
     except Exception as e:
@@ -190,7 +188,7 @@ async def create_api_key(
         return error_response(
             message="Failed to create API key",
             error_code="API_KEY_CREATION_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -217,11 +215,7 @@ async def list_api_keys(
         keys = security_manager.list_api_keys(include_inactive=include_inactive)
 
         return success_response(
-            data={
-                "api_keys": keys,
-                "total": len(keys)
-            },
-            message="API keys retrieved successfully"
+            data={"api_keys": keys, "total": len(keys)}, message="API keys retrieved successfully"
         )
 
     except Exception as e:
@@ -229,7 +223,7 @@ async def list_api_keys(
         return error_response(
             message="Failed to retrieve API keys",
             error_code="API_KEY_LIST_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -260,29 +254,23 @@ async def revoke_api_key(
         success = security_manager.revoke_api_key(api_key)
 
         if success:
-            return success_response(
-                data={"revoked": True},
-                message="API key revoked successfully"
-            )
+            return success_response(data={"revoked": True}, message="API key revoked successfully")
         else:
-            return error_response(
-                message="API key not found",
-                error_code="API_KEY_NOT_FOUND"
-            )
+            return error_response(message="API key not found", error_code="API_KEY_NOT_FOUND")
 
     except Exception as e:
         logger.error(f"API key revocation failed: {e}", exc_info=True)
         return error_response(
             message="Failed to revoke API key",
             error_code="API_KEY_REVOKE_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
 @router.get("/api-key/validate")
 @trace_operation("auth_validate_api_key")
 async def validate_api_key_endpoint(
-    api_key_obj: APIKey = Depends(verify_api_key)
+    api_key_obj: APIKey = Depends(verify_api_key),
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Validate an API key and return its details.
@@ -309,9 +297,9 @@ async def validate_api_key_endpoint(
             "type": api_key_obj.type.value,
             "rate_limit": api_key_obj.rate_limit,
             "last_used": api_key_obj.last_used.isoformat() if api_key_obj.last_used else None,
-            "created_at": api_key_obj.created_at.isoformat()
+            "created_at": api_key_obj.created_at.isoformat(),
         },
-        message="API key is valid"
+        message="API key is valid",
     )
 
 
@@ -329,17 +317,14 @@ async def get_security_stats() -> VersionedResponse[Dict[str, Any]]:
         security_manager = get_security_manager()
         stats = security_manager.get_stats()
 
-        return success_response(
-            data=stats,
-            message="Security statistics retrieved"
-        )
+        return success_response(data=stats, message="Security statistics retrieved")
 
     except Exception as e:
         logger.error(f"Failed to get security stats: {e}", exc_info=True)
         return error_response(
             message="Failed to retrieve security statistics",
             error_code="SECURITY_STATS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -359,9 +344,9 @@ async def security_health() -> VersionedResponse[Dict[str, str]]:
             data={
                 "status": "healthy",
                 "active_api_keys": stats.get("active_api_keys", 0),
-                "auth_success_rate": f"{(stats['auth_successes'] / max(stats['auth_attempts'], 1)) * 100:.1f}%"
+                "auth_success_rate": f"{(stats['auth_successes'] / max(stats['auth_attempts'], 1)) * 100:.1f}%",
             },
-            message="Security system is healthy"
+            message="Security system is healthy",
         )
 
     except Exception as e:
@@ -369,5 +354,5 @@ async def security_health() -> VersionedResponse[Dict[str, str]]:
         return error_response(
             message="Security health check failed",
             error_code="SECURITY_HEALTH_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )

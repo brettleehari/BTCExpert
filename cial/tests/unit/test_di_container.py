@@ -3,8 +3,9 @@ Tests for Dependency Injection Container
 Demonstrates how DI makes testing easier with mock providers
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
 from dependency_injector import providers
 
 from infrastructure.container import get_container, reset_container
@@ -89,7 +90,7 @@ class TestDIContainer:
             intelligence_type="price",
             importance="high",
             source="test",
-            data={"price": 50000}
+            data={"price": 50000},
         )
         assert result is True
         mock_postgres.store_intelligence.assert_called_once()
@@ -116,10 +117,9 @@ class TestDIContainer:
 
         # Test processing
         from api.models.intelligence import IntelligenceType
+
         message = broker.process_intelligence(
-            intelligence_type=IntelligenceType.PRICE,
-            source="test",
-            data={"price": 50000}
+            intelligence_type=IntelligenceType.PRICE, source="test", data={"price": 50000}
         )
         assert message.id == "test_msg_id"
         mock_broker.process_intelligence.assert_called_once()
@@ -147,14 +147,14 @@ class TestDIDependencyGraph:
         container = get_container()
         stm = container.short_term_memory()
         # STM should have redis_manager attribute injected
-        assert hasattr(stm, 'redis')
+        assert hasattr(stm, "redis")
 
     def test_long_term_memory_receives_postgres(self):
         """Test that LTM gets PostgreSQL Manager injected."""
         container = get_container()
         ltm = container.long_term_memory()
         # LTM should have postgres_manager attribute injected
-        assert hasattr(ltm, 'postgres')
+        assert hasattr(ltm, "postgres")
 
 
 class TestBackwardCompatibility:
@@ -167,10 +167,10 @@ class TestBackwardCompatibility:
     def test_backward_compatible_helpers(self):
         """Test that backward-compatible get_* functions work."""
         from infrastructure.container import (
-            get_redis_manager,
-            get_postgres_manager,
+            get_agent_registry,
             get_intelligence_broker,
-            get_agent_registry
+            get_postgres_manager,
+            get_redis_manager,
         )
 
         # Test helpers return singleton instances
@@ -194,6 +194,7 @@ class TestBackwardCompatibility:
 # ============================================================================
 # EXAMPLE: How to use DI in tests
 # ============================================================================
+
 
 @pytest.fixture
 def mock_container():

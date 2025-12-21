@@ -6,11 +6,12 @@ Version: 2.0 - Migrated to Pydantic V2
 Performance: 20-50% faster validation
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, computed_field, model_validator
-from typing import List, Optional
 from functools import lru_cache
+from typing import List, Optional
 from urllib.parse import urlparse
+
+from pydantic import Field, computed_field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -39,7 +40,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = Field(
         default=["http://localhost:3000", "http://localhost:8000"],
         validation_alias="ALLOWED_ORIGINS",
-        description="Allowed CORS origins"
+        description="Allowed CORS origins",
     )
 
     # Redis Configuration (Short-Term Memory)
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
         validation_alias="REDIS_MAX_CONNECTIONS",
         ge=1,
         le=1000,
-        description="Maximum Redis connection pool size"
+        description="Maximum Redis connection pool size",
     )
 
     # PostgreSQL Configuration (Long-Term Memory)
@@ -66,8 +67,8 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = Field(default="cial_user", validation_alias="POSTGRES_USER")
     POSTGRES_PASSWORD: str = Field(default="cial_password", validation_alias="POSTGRES_PASSWORD")
 
-    @model_validator(mode='after')
-    def parse_connection_urls(self) -> 'Settings':
+    @model_validator(mode="after")
+    def parse_connection_urls(self) -> "Settings":
         """
         Parse REDIS_URL and DATABASE_URL if provided.
 
@@ -86,7 +87,7 @@ class Settings(BaseSettings):
                     self.REDIS_PASSWORD = parsed.password
                 # Extract DB from path (e.g., /0, /1)
                 if parsed.path and len(parsed.path) > 1:
-                    db_str = parsed.path.lstrip('/')
+                    db_str = parsed.path.lstrip("/")
                     if db_str.isdigit():
                         self.REDIS_DB = int(db_str)
             except Exception as e:
@@ -107,7 +108,7 @@ class Settings(BaseSettings):
                 if parsed.password:
                     self.POSTGRES_PASSWORD = parsed.password
                 if parsed.path and len(parsed.path) > 1:
-                    self.POSTGRES_DB = parsed.path.lstrip('/')
+                    self.POSTGRES_DB = parsed.path.lstrip("/")
             except Exception as e:
                 # If parsing fails, keep defaults
                 pass
@@ -134,16 +135,13 @@ class Settings(BaseSettings):
 
     # Kafka Configuration (Event Stream)
     KAFKA_BOOTSTRAP_SERVERS: str = Field(
-        default="localhost:9093",
-        validation_alias="KAFKA_BOOTSTRAP_SERVERS"
+        default="localhost:9093", validation_alias="KAFKA_BOOTSTRAP_SERVERS"
     )
     KAFKA_CONSUMER_GROUP: str = Field(
-        default="cial-agents",
-        validation_alias="KAFKA_CONSUMER_GROUP"
+        default="cial-agents", validation_alias="KAFKA_CONSUMER_GROUP"
     )
     KAFKA_AUTO_OFFSET_RESET: str = Field(
-        default="earliest",
-        validation_alias="KAFKA_AUTO_OFFSET_RESET"
+        default="earliest", validation_alias="KAFKA_AUTO_OFFSET_RESET"
     )
 
     # Kafka Topics (Intelligence Stream)
@@ -164,32 +162,18 @@ class Settings(BaseSettings):
         default=86400,  # 24 hours
         validation_alias="TTL_LIVE_PRICES",
         ge=60,  # Minimum 1 minute
-        description="TTL for live price data"
+        description="TTL for live price data",
     )
-    TTL_ORDERBOOK: int = Field(
-        default=3600,  # 1 hour
-        validation_alias="TTL_ORDERBOOK",
-        ge=60
-    )
+    TTL_ORDERBOOK: int = Field(default=3600, validation_alias="TTL_ORDERBOOK", ge=60)  # 1 hour
     TTL_BREAKING_NEWS: int = Field(
-        default=2592000,  # 30 days
-        validation_alias="TTL_BREAKING_NEWS",
-        ge=3600
+        default=2592000, validation_alias="TTL_BREAKING_NEWS", ge=3600  # 30 days
     )
-    TTL_SENTIMENT: int = Field(
-        default=86400,  # 24 hours
-        validation_alias="TTL_SENTIMENT",
-        ge=60
-    )
+    TTL_SENTIMENT: int = Field(default=86400, validation_alias="TTL_SENTIMENT", ge=60)  # 24 hours
     TTL_WHALE_MOVEMENTS: int = Field(
-        default=604800,  # 7 days
-        validation_alias="TTL_WHALE_MOVEMENTS",
-        ge=3600
+        default=604800, validation_alias="TTL_WHALE_MOVEMENTS", ge=3600  # 7 days
     )
     TTL_TECHNICAL_INDICATORS: int = Field(
-        default=86400,  # 24 hours
-        validation_alias="TTL_TECHNICAL_INDICATORS",
-        ge=60
+        default=86400, validation_alias="TTL_TECHNICAL_INDICATORS", ge=60  # 24 hours
     )
 
     # API Rate Limiting
@@ -198,13 +182,10 @@ class Settings(BaseSettings):
         validation_alias="RATE_LIMIT_REQUESTS",
         ge=1,
         le=10000,
-        description="Maximum requests per period"
+        description="Maximum requests per period",
     )
     RATE_LIMIT_PERIOD: int = Field(
-        default=60,  # seconds
-        validation_alias="RATE_LIMIT_PERIOD",
-        ge=1,
-        le=3600
+        default=60, validation_alias="RATE_LIMIT_PERIOD", ge=1, le=3600  # seconds
     )
 
     # External API Keys (Data Source Connectors)
@@ -221,14 +202,14 @@ class Settings(BaseSettings):
         default="change-me-in-production-min32chars!!",  # 40 characters
         validation_alias="SECRET_KEY",
         min_length=32,
-        description="Secret key for JWT token signing (min 32 characters)"
+        description="Secret key for JWT token signing (min 32 characters)",
     )
     ALGORITHM: str = Field(default="HS256", validation_alias="ALGORITHM")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
         default=1440,  # 24 hours
         validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES",
         ge=1,
-        le=43200  # Max 30 days
+        le=43200,  # Max 30 days
     )
 
     # Monitoring & Observability
@@ -241,9 +222,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=True,
         validate_assignment=True,  # Validate on assignment
-        validate_default=True,     # Validate default values
-        extra="ignore",            # Ignore extra fields
-        frozen=False,              # Allow mutation (for runtime config updates)
+        validate_default=True,  # Validate default values
+        extra="ignore",  # Ignore extra fields
+        frozen=False,  # Allow mutation (for runtime config updates)
     )
 
 

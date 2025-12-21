@@ -11,13 +11,14 @@ Features:
 - Message filtering and routing
 """
 
-from typing import Dict, Set, Optional, List, Any
-from fastapi import WebSocket, WebSocketDisconnect
-from datetime import datetime
 import asyncio
 import json
 import uuid
+from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set
+
+from fastapi import WebSocket, WebSocketDisconnect
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
@@ -26,6 +27,7 @@ from infrastructure.observability import metrics, trace_operation
 
 class ConnectionState(str, Enum):
     """WebSocket connection states."""
+
     CONNECTING = "connecting"
     CONNECTED = "connected"
     AUTHENTICATED = "authenticated"
@@ -35,6 +37,7 @@ class ConnectionState(str, Enum):
 
 class SubscriptionType(str, Enum):
     """Types of intelligence subscriptions."""
+
     ALL = "all"
     PRICE_CRITICAL = "price.critical"
     PRICE_NORMAL = "price.normal"
@@ -52,12 +55,7 @@ class WebSocketConnection:
     Tracks connection state, subscriptions, and metadata.
     """
 
-    def __init__(
-        self,
-        websocket: WebSocket,
-        connection_id: str,
-        client_ip: str
-    ):
+    def __init__(self, websocket: WebSocket, connection_id: str, client_ip: str):
         self.websocket = websocket
         self.connection_id = connection_id
         self.client_ip = client_ip
@@ -97,7 +95,7 @@ class WebSocketConnection:
             "uptime_seconds": uptime,
             "messages_sent": self.messages_sent,
             "messages_received": self.messages_received,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -121,11 +119,11 @@ class WebSocketManager:
 
         # Statistics
         self.stats = {
-            'total_connections': 0,
-            'active_connections': 0,
-            'total_messages_sent': 0,
-            'total_messages_received': 0,
-            'broadcasts': 0
+            "total_connections": 0,
+            "active_connections": 0,
+            "total_messages_sent": 0,
+            "total_messages_received": 0,
+            "broadcasts": 0,
         }
 
     async def initialize(self):
@@ -133,6 +131,7 @@ class WebSocketManager:
         try:
             # Get Redis client from container
             from infrastructure.container import get_container
+
             container = get_container()
             redis_manager = container.redis_manager()
 
@@ -180,9 +179,9 @@ class WebSocketManager:
                 while self._running:
                     message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
 
-                    if message and message['type'] == 'message':
-                        channel = message['channel']
-                        data = message['data']
+                    if message and message["type"] == "message":
+                        channel = message["channel"]
+                        data = message["data"]
 
                         # Parse message
                         try:
@@ -191,10 +190,7 @@ class WebSocketManager:
                             intelligence_data = {"raw": data}
 
                         # Broadcast to subscribed clients
-                        await self.broadcast_intelligence(
-                            channel=channel,
-                            data=intelligence_data
-                        )
+                        await self.broadcast_intelligence(channel=channel, data=intelligence_data)
 
             except asyncio.CancelledError:
                 logger.info("PubSub listener cancelled")
@@ -221,10 +217,7 @@ class WebSocketManager:
 
     @trace_operation("websocket_connect")
     async def connect(
-        self,
-        websocket: WebSocket,
-        client_ip: str,
-        auth_token: Optional[str] = None
+        self, websocket: WebSocket, client_ip: str, auth_token: Optional[str] = None
     ) -> str:
         """
         Accept and register a new WebSocket connection.
@@ -246,9 +239,7 @@ class WebSocketManager:
 
             # Create connection object
             connection = WebSocketConnection(
-                websocket=websocket,
-                connection_id=connection_id,
-                client_ip=client_ip
+                websocket=websocket, connection_id=connection_id, client_ip=client_ip
             )
 
             # Update state
@@ -264,18 +255,12 @@ class WebSocketManager:
             self.connections[connection_id] = connection
 
             # Update statistics
-            self.stats['total_connections'] += 1
-            self.stats['active_connections'] = len(self.connections)
+            self.stats["total_connections"] += 1
+            self.stats["active_connections"] = len(self.connections)
 
             # Record metric
-            metrics.increment_counter(
-                'cial_websocket_connections_total',
-                {'status': 'connected'}
-            )
-            metrics.set_gauge(
-                'cial_websocket_active_connections',
-                len(self.connections)
-            )
+            metrics.increment_counter("cial_websocket_connections_total", {"status": "connected"})
+            metrics.set_gauge("cial_websocket_active_connections", len(self.connections))
 
             # Send welcome message
             await self.send_to_client(
@@ -285,14 +270,14 @@ class WebSocketManager:
                     "connection_id": connection_id,
                     "message": "Connected to CIAL real-time intelligence stream",
                     "timestamp": datetime.utcnow().isoformat(),
-                    "available_subscriptions": [s.value for s in SubscriptionType]
-                }
+                    "available_subscriptions": [s.value for s in SubscriptionType],
+                },
             )
 
             logger.info(
                 f"WebSocket connected: {connection_id}",
                 client_ip=client_ip,
-                total_connections=self.stats['active_connections']
+                total_connections=self.stats["active_connections"],
             )
 
             return connection_id
@@ -317,28 +302,20 @@ class WebSocketManager:
             del self.connections[connection_id]
 
             # Update statistics
-            self.stats['active_connections'] = len(self.connections)
+            self.stats["active_connections"] = len(self.connections)
 
             # Record metric
             metrics.increment_counter(
-                'cial_websocket_connections_total',
-                {'status': 'disconnected'}
+                "cial_websocket_connections_total", {"status": "disconnected"}
             )
-            metrics.set_gauge(
-                'cial_websocket_active_connections',
-                len(self.connections)
-            )
+            metrics.set_gauge("cial_websocket_active_connections", len(self.connections))
 
             logger.info(
                 f"WebSocket disconnected: {connection_id}",
-                total_connections=self.stats['active_connections']
+                total_connections=self.stats["active_connections"],
             )
 
-    async def send_to_client(
-        self,
-        connection_id: str,
-        message: Dict[str, Any]
-    ):
+    async def send_to_client(self, connection_id: str, message: Dict[str, Any]):
         """
         Send message to a specific client.
 
@@ -359,12 +336,11 @@ class WebSocketManager:
             # Update statistics
             connection.messages_sent += 1
             connection.update_activity()
-            self.stats['total_messages_sent'] += 1
+            self.stats["total_messages_sent"] += 1
 
             # Record metric
             metrics.increment_counter(
-                'cial_websocket_messages_sent_total',
-                {'connection_id': connection_id}
+                "cial_websocket_messages_sent_total", {"connection_id": connection_id}
             )
 
         except WebSocketDisconnect:
@@ -374,11 +350,7 @@ class WebSocketManager:
             logger.error(f"Failed to send message to {connection_id}: {e}")
             await self.disconnect(connection_id)
 
-    async def broadcast(
-        self,
-        message: Dict[str, Any],
-        subscription_filter: Optional[str] = None
-    ):
+    async def broadcast(self, message: Dict[str, Any], subscription_filter: Optional[str] = None):
         """
         Broadcast message to all connected clients.
 
@@ -391,7 +363,10 @@ class WebSocketManager:
         for connection_id, connection in self.connections.items():
             # Apply subscription filter
             if subscription_filter:
-                if subscription_filter not in connection.subscriptions and "all" not in connection.subscriptions:
+                if (
+                    subscription_filter not in connection.subscriptions
+                    and "all" not in connection.subscriptions
+                ):
                     continue
 
             try:
@@ -410,20 +385,15 @@ class WebSocketManager:
             await self.disconnect(connection_id)
 
         # Update statistics
-        self.stats['total_messages_sent'] += len(self.connections) - len(disconnected)
-        self.stats['broadcasts'] += 1
+        self.stats["total_messages_sent"] += len(self.connections) - len(disconnected)
+        self.stats["broadcasts"] += 1
 
         # Record metric
         metrics.increment_counter(
-            'cial_websocket_broadcasts_total',
-            {'subscription': subscription_filter or 'all'}
+            "cial_websocket_broadcasts_total", {"subscription": subscription_filter or "all"}
         )
 
-    async def broadcast_intelligence(
-        self,
-        channel: str,
-        data: Dict[str, Any]
-    ):
+    async def broadcast_intelligence(self, channel: str, data: Dict[str, Any]):
         """
         Broadcast intelligence update to subscribed clients.
 
@@ -435,21 +405,14 @@ class WebSocketManager:
             "type": "intelligence",
             "channel": channel,
             "data": data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
-        await self.broadcast(
-            message=message,
-            subscription_filter=channel
-        )
+        await self.broadcast(message=message, subscription_filter=channel)
 
         logger.debug(f"Broadcasted intelligence: {channel}")
 
-    async def handle_client_message(
-        self,
-        connection_id: str,
-        message: Dict[str, Any]
-    ):
+    async def handle_client_message(self, connection_id: str, message: Dict[str, Any]):
         """
         Handle incoming message from client.
 
@@ -468,7 +431,7 @@ class WebSocketManager:
         connection = self.connections[connection_id]
         connection.messages_received += 1
         connection.update_activity()
-        self.stats['total_messages_received'] += 1
+        self.stats["total_messages_received"] += 1
 
         message_type = message.get("type")
 
@@ -484,8 +447,8 @@ class WebSocketManager:
                 message={
                     "type": "subscribed",
                     "subscriptions": list(connection.subscriptions),
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
 
         elif message_type == "unsubscribe":
@@ -499,18 +462,15 @@ class WebSocketManager:
                 message={
                     "type": "unsubscribed",
                     "subscriptions": list(connection.subscriptions),
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
 
         elif message_type == "ping":
             # Respond to ping
             await self.send_to_client(
                 connection_id=connection_id,
-                message={
-                    "type": "pong",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+                message={"type": "pong", "timestamp": datetime.utcnow().isoformat()},
             )
 
         else:
@@ -524,24 +484,21 @@ class WebSocketManager:
 
     def get_all_connections(self) -> List[Dict[str, Any]]:
         """Get information about all connections."""
-        return [
-            conn.get_connection_info()
-            for conn in self.connections.values()
-        ]
+        return [conn.get_connection_info() for conn in self.connections.values()]
 
     def get_stats(self) -> Dict[str, Any]:
         """Get WebSocket manager statistics."""
         return {
             **self.stats,
-            'connections': [
+            "connections": [
                 {
-                    'connection_id': conn.connection_id,
-                    'state': conn.state.value,
-                    'subscriptions': list(conn.subscriptions),
-                    'uptime_seconds': (datetime.utcnow() - conn.connected_at).total_seconds()
+                    "connection_id": conn.connection_id,
+                    "state": conn.state.value,
+                    "subscriptions": list(conn.subscriptions),
+                    "uptime_seconds": (datetime.utcnow() - conn.connected_at).total_seconds(),
                 }
                 for conn in self.connections.values()
-            ]
+            ],
         }
 
 

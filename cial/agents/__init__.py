@@ -37,12 +37,7 @@ await agent.stop()
 ```
 """
 
-from .base_agent import BaseAgent, AgentDecision, AgentDecisionType
+from .base_agent import AgentDecision, AgentDecisionType, BaseAgent
 from .sample_price_monitor_agent import PriceMonitorAgent
 
-__all__ = [
-    'BaseAgent',
-    'AgentDecision',
-    'AgentDecisionType',
-    'PriceMonitorAgent'
-]
+__all__ = ["BaseAgent", "AgentDecision", "AgentDecisionType", "PriceMonitorAgent"]

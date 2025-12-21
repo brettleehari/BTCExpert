@@ -3,16 +3,16 @@ Sample Price Monitor Agent
 Demonstrates BaseAgent implementation for price monitoring and alerting
 """
 
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
-from agents.base_agent import BaseAgent, AgentDecision, AgentDecisionType
+from agents.base_agent import AgentDecision, AgentDecisionType, BaseAgent
 from api.models.intelligence import (
+    AgentCapabilities,
+    AgentType,
+    IntelligenceImportance,
     IntelligenceMessage,
     IntelligenceType,
-    IntelligenceImportance,
-    AgentType,
-    AgentCapabilities
 )
 from infrastructure.logging_config import logger
 
@@ -33,14 +33,14 @@ class PriceMonitorAgent(BaseAgent):
         agent_id: str,
         symbols: list[str],
         alert_threshold: float = 5.0,  # Alert on 5% change
-        recommendation_threshold: float = 10.0  # Recommend on 10% change
+        recommendation_threshold: float = 10.0,  # Recommend on 10% change
     ):
         # Define agent capabilities
         capabilities = AgentCapabilities(
             intelligence_types=[IntelligenceType.PRICE],
             symbols=symbols,
             min_importance=IntelligenceImportance.NORMAL,
-            real_time=True
+            real_time=True,
         )
 
         super().__init__(
@@ -49,8 +49,8 @@ class PriceMonitorAgent(BaseAgent):
             capabilities=capabilities,
             metadata={
                 "alert_threshold": alert_threshold,
-                "recommendation_threshold": recommendation_threshold
-            }
+                "recommendation_threshold": recommendation_threshold,
+            },
         )
 
         self.alert_threshold = alert_threshold
@@ -65,16 +65,10 @@ class PriceMonitorAgent(BaseAgent):
         for symbol in self.capabilities.symbols:
             current_price = await self.get_current_price(symbol)
             if current_price:
-                self.baseline_prices[symbol] = current_price.get('current_price', 0)
-                logger.info(
-                    f"Baseline set for {symbol}",
-                    price=self.baseline_prices[symbol]
-                )
+                self.baseline_prices[symbol] = current_price.get("current_price", 0)
+                logger.info(f"Baseline set for {symbol}", price=self.baseline_prices[symbol])
 
-    async def process_intelligence(
-        self,
-        message: IntelligenceMessage
-    ) -> Optional[AgentDecision]:
+    async def process_intelligence(self, message: IntelligenceMessage) -> Optional[AgentDecision]:
         """
         Process price intelligence and make decisions.
 
@@ -85,8 +79,8 @@ class PriceMonitorAgent(BaseAgent):
             Optional[AgentDecision]: Decision made
         """
         # Extract price data
-        current_price = message.data.get('current_price', 0)
-        price_change_24h = message.data.get('price_change_percentage_24h', 0)
+        current_price = message.data.get("current_price", 0)
+        price_change_24h = message.data.get("price_change_percentage_24h", 0)
         symbol = message.symbol
 
         if not symbol or current_price == 0:
@@ -96,7 +90,7 @@ class PriceMonitorAgent(BaseAgent):
             f"Processing price update",
             symbol=symbol,
             price=current_price,
-            change_24h=price_change_24h
+            change_24h=price_change_24h,
         )
 
         # Update baseline if not set
@@ -121,7 +115,9 @@ class PriceMonitorAgent(BaseAgent):
                 confidence = min(0.9, 0.6 + (abs(baseline_change) / 100))
             else:
                 decision_type = AgentDecisionType.BUY
-                reasoning = f"{symbol} down {abs(baseline_change):.2f}% from baseline - buying opportunity"
+                reasoning = (
+                    f"{symbol} down {abs(baseline_change):.2f}% from baseline - buying opportunity"
+                )
                 confidence = min(0.9, 0.6 + (abs(baseline_change) / 100))
 
         elif abs(baseline_change) >= self.alert_threshold:
@@ -149,15 +145,15 @@ class PriceMonitorAgent(BaseAgent):
                 "baseline_price": baseline,
                 "baseline_change_pct": baseline_change,
                 "price_change_24h_pct": price_change_24h,
-                "volume_24h": message.data.get('volume_24h', 0),
-                "market_cap": message.data.get('market_cap', 0)
+                "volume_24h": message.data.get("volume_24h", 0),
+                "market_cap": message.data.get("market_cap", 0),
             },
             metadata={
                 "intelligence_id": message.id,
                 "intelligence_source": message.source,
                 "alert_threshold": self.alert_threshold,
-                "recommendation_threshold": self.recommendation_threshold
-            }
+                "recommendation_threshold": self.recommendation_threshold,
+            },
         )
 
         return decision
@@ -175,15 +171,15 @@ class PriceMonitorAgent(BaseAgent):
         Args:
             decision: Decision to execute
         """
-        symbol = decision.data.get('symbol', 'UNKNOWN')
-        current_price = decision.data.get('current_price', 0)
+        symbol = decision.data.get("symbol", "UNKNOWN")
+        current_price = decision.data.get("current_price", 0)
 
         if decision.decision_type == AgentDecisionType.BUY:
             logger.info(
                 f"🟢 BUY RECOMMENDATION: {symbol}",
                 price=current_price,
                 confidence=decision.confidence,
-                reasoning=decision.reasoning
+                reasoning=decision.reasoning,
             )
             # In production: Execute buy order or send alert
 
@@ -192,23 +188,18 @@ class PriceMonitorAgent(BaseAgent):
                 f"🔴 SELL RECOMMENDATION: {symbol}",
                 price=current_price,
                 confidence=decision.confidence,
-                reasoning=decision.reasoning
+                reasoning=decision.reasoning,
             )
             # In production: Execute sell order or send alert
 
         elif decision.decision_type == AgentDecisionType.ALERT:
             logger.info(
-                f"⚠️  PRICE ALERT: {symbol}",
-                price=current_price,
-                reasoning=decision.reasoning
+                f"⚠️  PRICE ALERT: {symbol}", price=current_price, reasoning=decision.reasoning
             )
             # In production: Send push notification
 
         else:
-            logger.debug(
-                f"HOLD: {symbol}",
-                price=current_price
-            )
+            logger.debug(f"HOLD: {symbol}", price=current_price)
 
     async def reset_baseline(self, symbol: Optional[str] = None):
         """
@@ -220,13 +211,13 @@ class PriceMonitorAgent(BaseAgent):
         if symbol:
             current_price = await self.get_current_price(symbol)
             if current_price:
-                self.baseline_prices[symbol] = current_price.get('current_price', 0)
+                self.baseline_prices[symbol] = current_price.get("current_price", 0)
                 logger.info(f"Baseline reset for {symbol}: ${self.baseline_prices[symbol]:.2f}")
         else:
             for sym in self.capabilities.symbols:
                 current_price = await self.get_current_price(sym)
                 if current_price:
-                    self.baseline_prices[sym] = current_price.get('current_price', 0)
+                    self.baseline_prices[sym] = current_price.get("current_price", 0)
             logger.info("All baselines reset")
 
     def get_baselines(self) -> dict:

@@ -10,25 +10,25 @@ Components:
 """
 
 from .intelligence_validator import (
-    IntelligenceValidator,
-    ValidationRule,
-    ValidationResult,
-    PriceDeviationRule,
     CrossSourceValidationRule,
     DataCompletenessRule,
+    IntelligenceValidator,
+    PriceDeviationRule,
     SourceReliabilityRule,
     TimelinessRule,
-    get_intelligence_validator
+    ValidationResult,
+    ValidationRule,
+    get_intelligence_validator,
 )
 
 __all__ = [
-    'IntelligenceValidator',
-    'ValidationRule',
-    'ValidationResult',
-    'PriceDeviationRule',
-    'CrossSourceValidationRule',
-    'DataCompletenessRule',
-    'SourceReliabilityRule',
-    'TimelinessRule',
-    'get_intelligence_validator'
+    "IntelligenceValidator",
+    "ValidationRule",
+    "ValidationResult",
+    "PriceDeviationRule",
+    "CrossSourceValidationRule",
+    "DataCompletenessRule",
+    "SourceReliabilityRule",
+    "TimelinessRule",
+    "get_intelligence_validator",
 ]

@@ -3,22 +3,21 @@ CIAL Memory API Router
 Endpoints for agent memory management (STM & LTM)
 """
 
-from fastapi import APIRouter, HTTPException, Path, Body
-from typing import Optional, Dict, Any
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
-from memory.short_term_memory import get_short_term_memory
-from memory.long_term_memory import get_long_term_memory
+from fastapi import APIRouter, Body, HTTPException, Path
+
 from api.models.intelligence import IntelligenceType
 from infrastructure.logging_config import logger
-from datetime import datetime, timedelta
+from memory.long_term_memory import get_long_term_memory
+from memory.short_term_memory import get_short_term_memory
 
 router = APIRouter()
 
 
 @router.get("/stm/{agent_id}/context")
-async def get_agent_context(
-    agent_id: str = Path(..., description="Agent identifier")
-):
+async def get_agent_context(agent_id: str = Path(..., description="Agent identifier")):
     """
     Get agent's short-term memory context.
 
@@ -29,22 +28,16 @@ async def get_agent_context(
     context = stm.get_agent_context(agent_id)
 
     if context is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No context found for agent {agent_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"No context found for agent {agent_id}")
 
-    return {
-        "agent_id": agent_id,
-        "context": context
-    }
+    return {"agent_id": agent_id, "context": context}
 
 
 @router.post("/stm/{agent_id}/context")
 async def store_agent_context(
     agent_id: str = Path(..., description="Agent identifier"),
     context: Dict[str, Any] = Body(..., description="Context data to store"),
-    ttl: Optional[int] = Body(86400, description="Time-to-live in seconds")
+    ttl: Optional[int] = Body(86400, description="Time-to-live in seconds"),
 ):
     """
     Store agent's working context in short-term memory.
@@ -67,7 +60,7 @@ async def store_agent_context(
         "success": True,
         "agent_id": agent_id,
         "message": "Agent context stored successfully",
-        "ttl": ttl
+        "ttl": ttl,
     }
 
 
@@ -75,7 +68,7 @@ async def store_agent_context(
 async def store_agent_decision(
     agent_id: str = Path(..., description="Agent identifier"),
     decision: Dict[str, Any] = Body(..., description="Decision data"),
-    ttl: Optional[int] = Body(86400, description="Time-to-live in seconds")
+    ttl: Optional[int] = Body(86400, description="Time-to-live in seconds"),
 ):
     """
     Store agent decision in short-term memory.
@@ -98,14 +91,13 @@ async def store_agent_decision(
         "success": True,
         "agent_id": agent_id,
         "message": "Decision stored successfully",
-        "ttl": ttl
+        "ttl": ttl,
     }
 
 
 @router.get("/stm/{agent_id}/decisions")
 async def get_agent_decisions(
-    agent_id: str = Path(..., description="Agent identifier"),
-    limit: int = 10
+    agent_id: str = Path(..., description="Agent identifier"), limit: int = 10
 ):
     """
     Get agent's recent decisions from short-term memory.
@@ -120,11 +112,7 @@ async def get_agent_decisions(
     stm = get_short_term_memory()
     decisions = stm.get_agent_decisions(agent_id, limit)
 
-    return {
-        "agent_id": agent_id,
-        "decisions": decisions,
-        "count": len(decisions)
-    }
+    return {"agent_id": agent_id, "decisions": decisions, "count": len(decisions)}
 
 
 @router.get("/stm/{agent_id}/market-state")
@@ -141,10 +129,7 @@ async def get_market_state(agent_id: str = Path(..., description="Agent identifi
     if market_state is None:
         raise HTTPException(status_code=404, detail="No market state available")
 
-    return {
-        "agent_id": agent_id,
-        "market_state": market_state
-    }
+    return {"agent_id": agent_id, "market_state": market_state}
 
 
 @router.delete("/stm/{agent_id}")
@@ -164,11 +149,7 @@ async def clear_agent_memory(agent_id: str = Path(..., description="Agent identi
     if not success:
         raise HTTPException(status_code=500, detail="Failed to clear agent memory")
 
-    return {
-        "success": True,
-        "agent_id": agent_id,
-        "message": "Agent memory cleared successfully"
-    }
+    return {"success": True, "agent_id": agent_id, "message": "Agent memory cleared successfully"}
 
 
 @router.get("/stm/price/{symbol}")
@@ -186,15 +167,9 @@ async def get_cached_price(symbol: str = Path(..., description="Cryptocurrency s
     price_data = stm.get_current_price(symbol.upper())
 
     if price_data is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No cached price data for {symbol.upper()}"
-        )
+        raise HTTPException(status_code=404, detail=f"No cached price data for {symbol.upper()}")
 
-    return {
-        "symbol": symbol.upper(),
-        "price_data": price_data
-    }
+    return {"symbol": symbol.upper(), "price_data": price_data}
 
 
 @router.get("/stm/stats")
@@ -218,7 +193,7 @@ async def get_agent_patterns(agent_id: str):
     return {
         "agent_id": agent_id,
         "status": "pending_implementation",
-        "message": "LTM patterns endpoint will be implemented in Session 6"
+        "message": "LTM patterns endpoint will be implemented in Session 6",
     }
 
 
@@ -235,18 +210,14 @@ async def get_ltm_intelligence(intelligence_id: str):
 
     if not intelligence:
         raise HTTPException(
-            status_code=404,
-            detail=f"Intelligence {intelligence_id} not found in LTM"
+            status_code=404, detail=f"Intelligence {intelligence_id} not found in LTM"
         )
 
     return intelligence
 
 
 @router.get("/ltm/prices/{symbol}/history")
-async def get_price_history(
-    symbol: str,
-    days: int = 7
-):
+async def get_price_history(symbol: str, days: int = 7):
     """
     Get historical price data for a symbol.
 
@@ -260,25 +231,13 @@ async def get_price_history(
     ltm = get_long_term_memory()
     start_time = datetime.utcnow() - timedelta(days=days)
 
-    prices = await ltm.get_historical_prices(
-        symbol=symbol,
-        start_time=start_time,
-        limit=1000
-    )
+    prices = await ltm.get_historical_prices(symbol=symbol, start_time=start_time, limit=1000)
 
-    return {
-        "symbol": symbol,
-        "days": days,
-        "total_records": len(prices),
-        "prices": prices
-    }
+    return {"symbol": symbol, "days": days, "total_records": len(prices), "prices": prices}
 
 
 @router.get("/ltm/prices/{symbol}/trends")
-async def get_price_trends(
-    symbol: str,
-    days: int = 7
-):
+async def get_price_trends(symbol: str, days: int = 7):
     """
     Get price trend analysis for a symbol.
 
@@ -293,19 +252,13 @@ async def get_price_trends(
     trends = await ltm.get_price_trends(symbol, days)
 
     if not trends:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No price data found for {symbol}"
-        )
+        raise HTTPException(status_code=404, detail=f"No price data found for {symbol}")
 
     return trends
 
 
 @router.get("/ltm/sentiment/history")
-async def get_sentiment_history(
-    symbol: Optional[str] = None,
-    days: int = 7
-):
+async def get_sentiment_history(symbol: Optional[str] = None, days: int = 7):
     """
     Get historical sentiment data.
 
@@ -323,15 +276,13 @@ async def get_sentiment_history(
         "symbol": symbol or "all",
         "days": days,
         "total_records": len(sentiment),
-        "sentiment": sentiment
+        "sentiment": sentiment,
     }
 
 
 @router.get("/ltm/whale/movements")
 async def get_whale_movements(
-    symbol: Optional[str] = None,
-    min_amount_usd: float = 1000000,
-    days: int = 30
+    symbol: Optional[str] = None, min_amount_usd: float = 1000000, days: int = 30
 ):
     """
     Get whale movement history.
@@ -352,7 +303,7 @@ async def get_whale_movements(
         "min_amount_usd": min_amount_usd,
         "days": days,
         "total_movements": len(movements),
-        "movements": movements
+        "movements": movements,
     }
 
 
@@ -370,19 +321,11 @@ async def get_critical_events(days: int = 7):
     ltm = get_long_term_memory()
     events = await ltm.get_critical_events(days)
 
-    return {
-        "days": days,
-        "total_events": len(events),
-        "events": events
-    }
+    return {"days": days, "total_events": len(events), "events": events}
 
 
 @router.get("/ltm/search")
-async def search_ltm(
-    query: str,
-    intelligence_type: Optional[str] = None,
-    limit: int = 50
-):
+async def search_ltm(query: str, intelligence_type: Optional[str] = None, limit: int = 50):
     """
     Search intelligence in Long-Term Memory.
 
@@ -401,7 +344,7 @@ async def search_ltm(
         "query": query,
         "intelligence_type": intelligence_type,
         "total_results": len(results),
-        "results": results
+        "results": results,
     }
 
 

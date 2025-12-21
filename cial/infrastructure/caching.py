@@ -11,42 +11,40 @@ Features:
 - Decorator-based caching for easy integration
 """
 
-from typing import Optional, Any, Dict, List, Callable, Union
-from functools import wraps
 import asyncio
-import json
 import hashlib
-from datetime import datetime, timedelta
-from aiocache import Cache, caches
-from aiocache.serializers import JsonSerializer
-from aiocache.plugins import BasePlugin
+import json
 import time
+from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Union
+
+from aiocache import Cache, caches
+from aiocache.plugins import BasePlugin
+from aiocache.serializers import JsonSerializer
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 from infrastructure.observability import metrics, trace_operation
 
-
 # Configure aiocache backends
-caches.set_config({
-    'default': {
-        'cache': "aiocache.RedisCache",
-        'endpoint': settings.REDIS_HOST,
-        'port': settings.REDIS_PORT,
-        'db': settings.REDIS_DB,
-        'password': settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
-        'serializer': {
-            'class': "aiocache.serializers.JsonSerializer"
+caches.set_config(
+    {
+        "default": {
+            "cache": "aiocache.RedisCache",
+            "endpoint": settings.REDIS_HOST,
+            "port": settings.REDIS_PORT,
+            "db": settings.REDIS_DB,
+            "password": settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
+            "serializer": {"class": "aiocache.serializers.JsonSerializer"},
+            "plugins": [],
         },
-        'plugins': []
-    },
-    'memory': {
-        'cache': "aiocache.SimpleMemoryCache",
-        'serializer': {
-            'class': "aiocache.serializers.JsonSerializer"
-        }
+        "memory": {
+            "cache": "aiocache.SimpleMemoryCache",
+            "serializer": {"class": "aiocache.serializers.JsonSerializer"},
+        },
     }
-})
+)
 
 
 class CacheMetricsPlugin(BasePlugin):
@@ -65,21 +63,19 @@ class CacheMetricsPlugin(BasePlugin):
         if ret is not None:
             # Cache hit
             metrics.increment_counter(
-                'cial_cache_hits_total',
-                {'cache_type': cache_type, 'operation': 'get'}
+                "cial_cache_hits_total", {"cache_type": cache_type, "operation": "get"}
             )
         else:
             # Cache miss
             metrics.increment_counter(
-                'cial_cache_misses_total',
-                {'cache_type': cache_type, 'operation': 'get'}
+                "cial_cache_misses_total", {"cache_type": cache_type, "operation": "get"}
             )
 
         # Record operation duration
         metrics.record_histogram(
-            'cial_cache_operation_seconds',
+            "cial_cache_operation_seconds",
             took_time,
-            {'cache_type': cache_type, 'operation': 'get'}
+            {"cache_type": cache_type, "operation": "get"},
         )
 
 
@@ -96,29 +92,34 @@ class CacheManager:
     """
 
     def __init__(self):
-        self.redis_cache = Cache(Cache.REDIS, **{
-            'endpoint': settings.REDIS_HOST,
-            'port': settings.REDIS_PORT,
-            'db': settings.REDIS_DB,
-            'password': settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
-            'serializer': JsonSerializer(),
-        })
+        self.redis_cache = Cache(
+            Cache.REDIS,
+            **{
+                "endpoint": settings.REDIS_HOST,
+                "port": settings.REDIS_PORT,
+                "db": settings.REDIS_DB,
+                "password": settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
+                "serializer": JsonSerializer(),
+            },
+        )
 
         self.memory_cache = Cache(Cache.MEMORY, serializer=JsonSerializer())
 
         # Cache statistics
-        self.stats = {
-            'hits': 0,
-            'misses': 0,
-            'sets': 0,
-            'deletes': 0,
-            'warmings': 0
-        }
+        self.stats = {"hits": 0, "misses": 0, "sets": 0, "deletes": 0, "warmings": 0}
 
         # Popular symbols for cache warming
         self.popular_symbols = [
-            'bitcoin', 'ethereum', 'solana', 'cardano', 'polkadot',
-            'avalanche', 'polygon', 'chainlink', 'uniswap', 'aave'
+            "bitcoin",
+            "ethereum",
+            "solana",
+            "cardano",
+            "polkadot",
+            "avalanche",
+            "polygon",
+            "chainlink",
+            "uniswap",
+            "aave",
         ]
 
         # Cache warming interval (seconds)
@@ -128,11 +129,7 @@ class CacheManager:
         self._warming_task: Optional[asyncio.Task] = None
 
     @trace_operation("cache_get")
-    async def get(
-        self,
-        key: str,
-        cache_tier: str = "both"
-    ) -> Optional[Any]:
+    async def get(self, key: str, cache_tier: str = "both") -> Optional[Any]:
         """
         Get value from cache with multi-tier support.
 
@@ -150,10 +147,9 @@ class CacheManager:
             if cache_tier in ["both", "memory"]:
                 value = await self.memory_cache.get(key)
                 if value is not None:
-                    self.stats['hits'] += 1
+                    self.stats["hits"] += 1
                     metrics.increment_counter(
-                        'cial_cache_hits_total',
-                        {'tier': 'memory', 'operation': 'get'}
+                        "cial_cache_hits_total", {"tier": "memory", "operation": "get"}
                     )
                     logger.debug(f"Cache hit (memory): {key}")
                     return value
@@ -162,10 +158,9 @@ class CacheManager:
             if cache_tier in ["both", "redis"]:
                 value = await self.redis_cache.get(key)
                 if value is not None:
-                    self.stats['hits'] += 1
+                    self.stats["hits"] += 1
                     metrics.increment_counter(
-                        'cial_cache_hits_total',
-                        {'tier': 'redis', 'operation': 'get'}
+                        "cial_cache_hits_total", {"tier": "redis", "operation": "get"}
                     )
 
                     # Promote to L1 cache for faster access
@@ -176,10 +171,9 @@ class CacheManager:
                     return value
 
             # Cache miss
-            self.stats['misses'] += 1
+            self.stats["misses"] += 1
             metrics.increment_counter(
-                'cial_cache_misses_total',
-                {'tier': cache_tier, 'operation': 'get'}
+                "cial_cache_misses_total", {"tier": cache_tier, "operation": "get"}
             )
             logger.debug(f"Cache miss: {key}")
             return None
@@ -187,18 +181,12 @@ class CacheManager:
         finally:
             duration = time.time() - start_time
             metrics.record_histogram(
-                'cial_cache_operation_seconds',
-                duration,
-                {'operation': 'get', 'tier': cache_tier}
+                "cial_cache_operation_seconds", duration, {"operation": "get", "tier": cache_tier}
             )
 
     @trace_operation("cache_set")
     async def set(
-        self,
-        key: str,
-        value: Any,
-        ttl: Optional[int] = None,
-        cache_tier: str = "both"
+        self, key: str, value: Any, ttl: Optional[int] = None, cache_tier: str = "both"
     ) -> bool:
         """
         Set value in cache with multi-tier support.
@@ -225,11 +213,8 @@ class CacheManager:
             if cache_tier in ["both", "redis"]:
                 await self.redis_cache.set(key, value, ttl=ttl)
 
-            self.stats['sets'] += 1
-            metrics.increment_counter(
-                'cial_cache_sets_total',
-                {'tier': cache_tier}
-            )
+            self.stats["sets"] += 1
+            metrics.increment_counter("cial_cache_sets_total", {"tier": cache_tier})
 
             logger.debug(f"Cache set: {key} (ttl={ttl}s, tier={cache_tier})")
             return True
@@ -241,9 +226,7 @@ class CacheManager:
         finally:
             duration = time.time() - start_time
             metrics.record_histogram(
-                'cial_cache_operation_seconds',
-                duration,
-                {'operation': 'set', 'tier': cache_tier}
+                "cial_cache_operation_seconds", duration, {"operation": "set", "tier": cache_tier}
             )
 
     @trace_operation("cache_delete")
@@ -265,11 +248,8 @@ class CacheManager:
             if cache_tier in ["both", "redis"]:
                 await self.redis_cache.delete(key)
 
-            self.stats['deletes'] += 1
-            metrics.increment_counter(
-                'cial_cache_deletes_total',
-                {'tier': cache_tier}
-            )
+            self.stats["deletes"] += 1
+            metrics.increment_counter("cial_cache_deletes_total", {"tier": cache_tier})
 
             logger.debug(f"Cache deleted: {key} (tier={cache_tier})")
             return True
@@ -292,6 +272,7 @@ class CacheManager:
         try:
             # Get Redis client from cache
             from infrastructure.container import get_container
+
             container = get_container()
             redis_manager = container.redis_manager()
             client = redis_manager.async_client
@@ -307,9 +288,7 @@ class CacheManager:
                 logger.info(f"Invalidated {deleted} keys matching pattern: {pattern}")
 
                 metrics.increment_counter(
-                    'cial_cache_invalidations_total',
-                    {'pattern': pattern},
-                    deleted
+                    "cial_cache_invalidations_total", {"pattern": pattern}, deleted
                 )
 
                 return deleted
@@ -355,15 +334,15 @@ class CacheManager:
                         key=cache_key,
                         value=price_data,
                         ttl=settings.TTL_LIVE_PRICES,
-                        cache_tier="both"
+                        cache_tier="both",
                     )
                     warmed += 1
 
             except Exception as e:
                 logger.warning(f"Failed to warm cache for {symbol}: {e}")
 
-        self.stats['warmings'] += 1
-        metrics.increment_counter('cial_cache_warmings_total', value=warmed)
+        self.stats["warmings"] += 1
+        metrics.increment_counter("cial_cache_warmings_total", value=warmed)
 
         logger.info(f"Cache warming complete: {warmed}/{len(symbols_to_warm)} symbols cached")
 
@@ -406,19 +385,19 @@ class CacheManager:
         Returns:
             Dictionary with cache hit/miss rates and operation counts
         """
-        total_requests = self.stats['hits'] + self.stats['misses']
-        hit_rate = (self.stats['hits'] / total_requests * 100) if total_requests > 0 else 0
+        total_requests = self.stats["hits"] + self.stats["misses"]
+        hit_rate = (self.stats["hits"] / total_requests * 100) if total_requests > 0 else 0
 
         return {
-            'hits': self.stats['hits'],
-            'misses': self.stats['misses'],
-            'sets': self.stats['sets'],
-            'deletes': self.stats['deletes'],
-            'warmings': self.stats['warmings'],
-            'total_requests': total_requests,
-            'hit_rate_percent': round(hit_rate, 2),
-            'warming_interval_seconds': self.warming_interval,
-            'popular_symbols': self.popular_symbols
+            "hits": self.stats["hits"],
+            "misses": self.stats["misses"],
+            "sets": self.stats["sets"],
+            "deletes": self.stats["deletes"],
+            "warmings": self.stats["warmings"],
+            "total_requests": total_requests,
+            "hit_rate_percent": round(hit_rate, 2),
+            "warming_interval_seconds": self.warming_interval,
+            "popular_symbols": self.popular_symbols,
         }
 
 
@@ -440,11 +419,7 @@ def get_cache_manager() -> CacheManager:
 
 
 def cache_key_builder(
-    prefix: str,
-    *args,
-    separator: str = ":",
-    include_timestamp: bool = False,
-    **kwargs
+    prefix: str, *args, separator: str = ":", include_timestamp: bool = False, **kwargs
 ) -> str:
     """
     Build a standardized cache key from components.
@@ -488,7 +463,7 @@ def cached(
     ttl: int = 300,
     key_prefix: str = "cached",
     cache_tier: str = "both",
-    key_builder: Optional[Callable] = None
+    key_builder: Optional[Callable] = None,
 ):
     """
     Decorator for caching function results with cache-aside pattern.
@@ -514,6 +489,7 @@ def cached(
             # Expensive API call
             return await api.get_price(symbol)
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -548,17 +524,13 @@ def cached(
 
             # Store in cache (cache-aside pattern step 3)
             if result is not None:
-                await cache_manager.set(
-                    key=cache_key,
-                    value=result,
-                    ttl=ttl,
-                    cache_tier=cache_tier
-                )
+                await cache_manager.set(key=cache_key, value=result, ttl=ttl, cache_tier=cache_tier)
 
             # Return result (cache-aside pattern step 4)
             return result
 
         return wrapper
+
     return decorator
 
 

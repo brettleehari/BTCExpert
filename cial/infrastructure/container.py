@@ -5,8 +5,9 @@ Centralized dependency management with lifecycle control
 Version: 1.0 - Production-Ready DI Container
 """
 
-from dependency_injector import containers, providers
 from typing import Optional
+
+from dependency_injector import containers, providers
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
@@ -40,17 +41,19 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
     # Redis Manager (Short-Term Memory)
     redis_manager = providers.Singleton(
-        lambda: __import__('infrastructure.redis_manager', fromlist=['RedisManager']).RedisManager()
+        lambda: __import__("infrastructure.redis_manager", fromlist=["RedisManager"]).RedisManager()
     )
 
     # Kafka Manager (Event Stream)
     kafka_manager = providers.Singleton(
-        lambda: __import__('infrastructure.kafka_manager', fromlist=['KafkaManager']).KafkaManager()
+        lambda: __import__("infrastructure.kafka_manager", fromlist=["KafkaManager"]).KafkaManager()
     )
 
     # PostgreSQL Manager (Long-Term Memory)
     postgres_manager = providers.Singleton(
-        lambda: __import__('infrastructure.postgres_manager', fromlist=['PostgresManager']).PostgresManager()
+        lambda: __import__(
+            "infrastructure.postgres_manager", fromlist=["PostgresManager"]
+        ).PostgresManager()
     )
 
     # ========================================================================
@@ -59,14 +62,18 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
     # Short-Term Memory
     short_term_memory = providers.Singleton(
-        lambda redis_mgr: __import__('memory.short_term_memory', fromlist=['ShortTermMemory']).ShortTermMemory(redis_mgr),
-        redis_mgr=redis_manager
+        lambda redis_mgr: __import__(
+            "memory.short_term_memory", fromlist=["ShortTermMemory"]
+        ).ShortTermMemory(redis_mgr),
+        redis_mgr=redis_manager,
     )
 
     # Long-Term Memory
     long_term_memory = providers.Singleton(
-        lambda postgres_mgr: __import__('memory.long_term_memory', fromlist=['LongTermMemory']).LongTermMemory(postgres_mgr),
-        postgres_mgr=postgres_manager
+        lambda postgres_mgr: __import__(
+            "memory.long_term_memory", fromlist=["LongTermMemory"]
+        ).LongTermMemory(postgres_mgr),
+        postgres_mgr=postgres_manager,
     )
 
     # ========================================================================
@@ -75,17 +82,19 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
     # Agent Registry
     agent_registry = providers.Singleton(
-        lambda: __import__('core.agent_registry', fromlist=['AgentRegistry']).AgentRegistry()
+        lambda: __import__("core.agent_registry", fromlist=["AgentRegistry"]).AgentRegistry()
     )
 
     # Service Registry
     service_registry = providers.Singleton(
-        lambda: __import__('core.service_registry', fromlist=['ServiceRegistry']).ServiceRegistry()
+        lambda: __import__("core.service_registry", fromlist=["ServiceRegistry"]).ServiceRegistry()
     )
 
     # Intelligence Broker
     intelligence_broker = providers.Singleton(
-        lambda: __import__('core.intelligence_broker', fromlist=['IntelligenceBroker']).IntelligenceBroker()
+        lambda: __import__(
+            "core.intelligence_broker", fromlist=["IntelligenceBroker"]
+        ).IntelligenceBroker()
     )
 
     # ========================================================================
@@ -94,7 +103,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
     # Intelligence Validator
     intelligence_validator = providers.Singleton(
-        lambda: __import__('validation.intelligence_validator', fromlist=['IntelligenceValidator']).IntelligenceValidator()
+        lambda: __import__(
+            "validation.intelligence_validator", fromlist=["IntelligenceValidator"]
+        ).IntelligenceValidator()
     )
 
     # ========================================================================
@@ -103,7 +114,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
     # CoinGecko Connector
     coingecko_connector = providers.Singleton(
-        lambda: __import__('connectors.price_intelligence.coingecko_connector', fromlist=['CoinGeckoConnector']).CoinGeckoConnector()
+        lambda: __import__(
+            "connectors.price_intelligence.coingecko_connector", fromlist=["CoinGeckoConnector"]
+        ).CoinGeckoConnector()
     )
 
 
@@ -257,6 +270,7 @@ async def shutdown_container():
 # ============================================================================
 # BACKWARD COMPATIBILITY HELPERS
 # ============================================================================
+
 
 def get_redis_manager():
     """Get Redis Manager from container (backward compatible)."""

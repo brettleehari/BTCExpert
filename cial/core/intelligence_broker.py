@@ -5,28 +5,31 @@ Central intelligence routing and service discovery for crypto agents
 Version: 2.0 - With OpenTelemetry Tracing & Prometheus Metrics
 """
 
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
-import uuid
+import asyncio
 import time
+import uuid
 from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 from api.models.intelligence import (
-    IntelligenceMessage, IntelligenceImportance, IntelligenceType,
-    Agent, DataConnector
+    Agent,
+    DataConnector,
+    IntelligenceImportance,
+    IntelligenceMessage,
+    IntelligenceType,
 )
 from core.agent_registry import get_agent_registry
-from infrastructure.logging_config import logger, log_intelligence_event
-from memory.short_term_memory import get_short_term_memory
-from memory.long_term_memory import get_long_term_memory
 from infrastructure.kafka_manager import get_kafka_manager
-from validation.intelligence_validator import get_intelligence_validator
+from infrastructure.logging_config import log_intelligence_event, logger
 from infrastructure.observability import (
-    trace_operation,
+    intelligence_routing_total,
     record_intelligence_message,
-    intelligence_routing_total
+    trace_operation,
 )
-import asyncio
+from memory.long_term_memory import get_long_term_memory
+from memory.short_term_memory import get_short_term_memory
+from validation.intelligence_validator import get_intelligence_validator
 
 
 class IntelligenceBroker:
@@ -62,7 +65,7 @@ class IntelligenceBroker:
         source: str,
         data: Dict[str, Any],
         symbol: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> IntelligenceMessage:
         """
         Process raw intelligence data through the CIAL pipeline.
@@ -87,7 +90,7 @@ class IntelligenceBroker:
             source=source,
             data=data,
             symbol=symbol,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # 2. Validate (placeholder for now)
@@ -121,7 +124,7 @@ class IntelligenceBroker:
             intelligence_type=intelligence_type.value,
             importance=classified_message.importance.value,
             source=source,
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
         # 11. Log intelligence event
@@ -130,7 +133,7 @@ class IntelligenceBroker:
             source=source,
             importance=classified_message.importance.value,
             symbol=symbol,
-            routed_to=routed_count
+            routed_to=routed_count,
         )
 
         logger.info(
@@ -138,7 +141,7 @@ class IntelligenceBroker:
             type=classified_message.type.value,
             importance=classified_message.importance.value,
             routed_to=routed_count,
-            processing_time_ms=round(processing_time * 1000, 2)
+            processing_time_ms=round(processing_time * 1000, 2),
         )
 
         return classified_message
@@ -149,7 +152,7 @@ class IntelligenceBroker:
         source: str,
         data: Dict[str, Any],
         symbol: Optional[str],
-        metadata: Dict[str, Any]
+        metadata: Dict[str, Any],
     ) -> IntelligenceMessage:
         """Create intelligence message with unique ID and timestamp."""
         message_id = f"{intelligence_type.value}_{symbol or 'global'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
@@ -163,7 +166,7 @@ class IntelligenceBroker:
             data=data,
             metadata=metadata,
             timestamp=datetime.utcnow(),
-            validated=False
+            validated=False,
         )
 
     def _validate_intelligence(self, message: IntelligenceMessage) -> bool:
@@ -181,9 +184,7 @@ class IntelligenceBroker:
         # Run async validation and store results in metadata
         try:
             # Create async task for validation (non-blocking)
-            validation_task = asyncio.create_task(
-                self.validator.validate(message)
-            )
+            validation_task = asyncio.create_task(self.validator.validate(message))
             # Store task reference in metadata for later retrieval
             message.metadata["_validation_task"] = validation_task
         except Exception as e:
@@ -279,7 +280,7 @@ class IntelligenceBroker:
                     f"Intelligence published to Kafka",
                     message_id=message.id,
                     type=message.type.value,
-                    importance=message.importance.value
+                    importance=message.importance.value,
                 )
             else:
                 logger.warning(f"Failed to publish intelligence to Kafka: {message.id}")
@@ -298,14 +299,9 @@ class IntelligenceBroker:
         """
         try:
             # Create async task for LTM storage (non-blocking)
-            asyncio.create_task(
-                self.ltm.store_intelligence(message, routed_to_count)
-            )
+            asyncio.create_task(self.ltm.store_intelligence(message, routed_to_count))
 
-            logger.debug(
-                f"LTM storage initiated",
-                message_id=message.id
-            )
+            logger.debug(f"LTM storage initiated", message_id=message.id)
 
         except Exception as e:
             # Don't fail the pipeline if LTM storage fails
@@ -323,14 +319,16 @@ class IntelligenceBroker:
         """
         # Find agents interested in this intelligence
         interested_agents = self.agent_registry.get_agents_for_intelligence(
-            intelligence_type=message.type,
-            symbol=message.symbol
+            intelligence_type=message.type, symbol=message.symbol
         )
 
         # Filter by minimum importance level
         eligible_agents = [
-            agent for agent in interested_agents
-            if self._meets_importance_threshold(message.importance, agent.capabilities.min_importance)
+            agent
+            for agent in interested_agents
+            if self._meets_importance_threshold(
+                message.importance, agent.capabilities.min_importance
+            )
         ]
 
         # Update routing stats
@@ -344,15 +342,13 @@ class IntelligenceBroker:
         return len(eligible_agents)
 
     def _meets_importance_threshold(
-        self,
-        message_importance: IntelligenceImportance,
-        min_importance: IntelligenceImportance
+        self, message_importance: IntelligenceImportance, min_importance: IntelligenceImportance
     ) -> bool:
         """Check if message importance meets agent's minimum threshold."""
         importance_order = {
             IntelligenceImportance.LOW: 0,
             IntelligenceImportance.NORMAL: 1,
-            IntelligenceImportance.CRITICAL: 2
+            IntelligenceImportance.CRITICAL: 2,
         }
 
         return importance_order[message_importance] >= importance_order[min_importance]
@@ -388,7 +384,7 @@ class IntelligenceBroker:
 
         logger.info(
             f"Data connector registered: {connector.connector_id}",
-            intelligence_types=connector.intelligence_types
+            intelligence_types=connector.intelligence_types,
         )
 
         return True
@@ -404,7 +400,8 @@ class IntelligenceBroker:
     def get_connectors_by_type(self, intelligence_type: IntelligenceType) -> List[DataConnector]:
         """Get connectors that provide specific intelligence type."""
         return [
-            conn for conn in self._connectors.values()
+            conn
+            for conn in self._connectors.values()
             if intelligence_type in conn.intelligence_types and conn.enabled
         ]
 
@@ -414,7 +411,7 @@ class IntelligenceBroker:
         self,
         intelligence_type: Optional[IntelligenceType] = None,
         symbol: Optional[str] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[IntelligenceMessage]:
         """
         Get recent intelligence messages.
@@ -451,7 +448,7 @@ class IntelligenceBroker:
             "registered_connectors": len(self._connectors),
             "active_connectors": sum(1 for c in self._connectors.values() if c.enabled),
             "routing_stats": dict(self._routing_stats),
-            "agent_stats": self.agent_registry.get_registry_stats()
+            "agent_stats": self.agent_registry.get_registry_stats(),
         }
 
 

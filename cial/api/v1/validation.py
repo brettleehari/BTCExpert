@@ -3,13 +3,14 @@ CIAL Validation API Router
 Endpoints for intelligence validation and confidence scoring
 """
 
-from fastapi import APIRouter, HTTPException, Body
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from validation.intelligence_validator import get_intelligence_validator
+from fastapi import APIRouter, Body, HTTPException
+
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
 from core.service_registry import get_service_registry
 from infrastructure.logging_config import logger
+from validation.intelligence_validator import get_intelligence_validator
 
 router = APIRouter()
 
@@ -47,10 +48,7 @@ async def get_validation_rules():
     validator = get_intelligence_validator()
     rules = validator.get_rules()
 
-    return {
-        "total_rules": len(rules),
-        "rules": rules
-    }
+    return {"total_rules": len(rules), "rules": rules}
 
 
 @router.get("/source-reliability")
@@ -77,7 +75,7 @@ async def get_source_reliability(source: Optional[str] = None):
             "source": source,
             "reliability_score": connector.reliability_score,
             "enabled": connector.enabled,
-            "health": health.model_dump() if health else None
+            "health": health.model_dump() if health else None,
         }
 
     # Get all sources
@@ -86,26 +84,22 @@ async def get_source_reliability(source: Optional[str] = None):
     sources_info = []
     for connector in connectors:
         health = registry.get_health_status(connector.connector_id)
-        sources_info.append({
-            "source": connector.connector_id,
-            "name": connector.name,
-            "reliability_score": connector.reliability_score,
-            "enabled": connector.enabled,
-            "intelligence_types": [t.value for t in connector.intelligence_types],
-            "healthy": health.healthy if health else False
-        })
+        sources_info.append(
+            {
+                "source": connector.connector_id,
+                "name": connector.name,
+                "reliability_score": connector.reliability_score,
+                "enabled": connector.enabled,
+                "intelligence_types": [t.value for t in connector.intelligence_types],
+                "healthy": health.healthy if health else False,
+            }
+        )
 
-    return {
-        "total_sources": len(sources_info),
-        "sources": sources_info
-    }
+    return {"total_sources": len(sources_info), "sources": sources_info}
 
 
 @router.get("/cross-check/{intelligence_type}/{symbol}")
-async def cross_check_intelligence(
-    intelligence_type: str,
-    symbol: str
-):
+async def cross_check_intelligence(intelligence_type: str, symbol: str):
     """
     Cross-check intelligence across multiple sources.
 
@@ -120,25 +114,20 @@ async def cross_check_intelligence(
         intel_type = IntelligenceType(intelligence_type)
     except ValueError:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid intelligence type: {intelligence_type}"
+            status_code=400, detail=f"Invalid intelligence type: {intelligence_type}"
         )
 
     # Get recent intelligence from multiple sources
     from memory.short_term_memory import get_short_term_memory
+
     stm = get_short_term_memory()
 
     recent_intel = stm.get_recent_intelligence(
-        intelligence_type=intel_type,
-        symbol=symbol,
-        limit=20
+        intelligence_type=intel_type, symbol=symbol, limit=20
     )
 
     if not recent_intel:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No intelligence found for {symbol}"
-        )
+        raise HTTPException(status_code=404, detail=f"No intelligence found for {symbol}")
 
     # Group by source
     by_source = {}
@@ -161,7 +150,7 @@ async def cross_check_intelligence(
                 source_prices[source] = {
                     "latest_price": prices[0],
                     "average_price": sum(prices) / len(prices),
-                    "sample_count": len(prices)
+                    "sample_count": len(prices),
                 }
 
         if source_prices:
@@ -176,25 +165,21 @@ async def cross_check_intelligence(
                 "average_price": avg_latest,
                 "max_deviation_percent": max_deviation,
                 "by_source": source_prices,
-                "consensus": "high" if max_deviation < 2 else "medium" if max_deviation < 5 else "low"
+                "consensus": (
+                    "high" if max_deviation < 2 else "medium" if max_deviation < 5 else "low"
+                ),
             }
 
     return {
         "intelligence_type": intelligence_type,
         "symbol": symbol,
         "sources_count": len(by_source),
-        "by_source": {
-            source: len(messages)
-            for source, messages in by_source.items()
-        }
+        "by_source": {source: len(messages) for source, messages in by_source.items()},
     }
 
 
 @router.get("/consensus/{symbol}")
-async def get_consensus(
-    symbol: str,
-    intelligence_type: Optional[str] = "price"
-):
+async def get_consensus(symbol: str, intelligence_type: Optional[str] = "price"):
     """
     Get consensus intelligence for a symbol.
 
@@ -212,24 +197,19 @@ async def get_consensus(
         intel_type = IntelligenceType(intelligence_type)
     except ValueError:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid intelligence type: {intelligence_type}"
+            status_code=400, detail=f"Invalid intelligence type: {intelligence_type}"
         )
 
     from memory.short_term_memory import get_short_term_memory
+
     stm = get_short_term_memory()
 
     recent_intel = stm.get_recent_intelligence(
-        intelligence_type=intel_type,
-        symbol=symbol,
-        limit=10
+        intelligence_type=intel_type, symbol=symbol, limit=10
     )
 
     if not recent_intel:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No intelligence found for {symbol}"
-        )
+        raise HTTPException(status_code=404, detail=f"No intelligence found for {symbol}")
 
     # Calculate consensus for price
     if intel_type == IntelligenceType.PRICE:
@@ -240,10 +220,7 @@ async def get_consensus(
         ]
 
         if not prices:
-            raise HTTPException(
-                status_code=404,
-                detail="No valid price data found"
-            )
+            raise HTTPException(status_code=404, detail="No valid price data found")
 
         avg_price = sum(prices) / len(prices)
         min_price = min(prices)
@@ -266,11 +243,11 @@ async def get_consensus(
             "price_range": {
                 "min": min_price,
                 "max": max_price,
-                "variance_percent": variance_percent
+                "variance_percent": variance_percent,
             },
             "confidence": confidence,
             "sample_size": len(prices),
-            "sources": len(set(msg.get("source") for msg in recent_intel))
+            "sources": len(set(msg.get("source") for msg in recent_intel)),
         }
 
     # Generic response for other types
@@ -278,7 +255,7 @@ async def get_consensus(
         "symbol": symbol,
         "intelligence_type": intelligence_type,
         "sample_size": len(recent_intel),
-        "sources": len(set(msg.get("source") for msg in recent_intel))
+        "sources": len(set(msg.get("source") for msg in recent_intel)),
     }
 
 
@@ -300,5 +277,5 @@ async def get_validation_stats():
         "validation_rules": len(rules),
         "registered_sources": registry_stats.get("total_connectors", 0),
         "healthy_sources": registry_stats.get("healthy_connectors", 0),
-        "overall_reliability": registry_stats.get("overall_success_rate", 0.0)
+        "overall_reliability": registry_stats.get("overall_success_rate", 0.0),
     }

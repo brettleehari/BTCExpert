@@ -2,18 +2,19 @@
 Unit tests for Short-Term Memory (STM)
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
 
+import pytest
+
+from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 from memory.short_term_memory import ShortTermMemory
-from api.models.intelligence import IntelligenceMessage, IntelligenceType, IntelligenceImportance
 
 
 @pytest.fixture
 def stm():
     """Create STM instance with mocked Redis"""
-    with patch('memory.short_term_memory.get_redis_manager') as mock_redis_manager:
+    with patch("memory.short_term_memory.get_redis_manager") as mock_redis_manager:
         mock_client = Mock()
         mock_redis_manager.return_value.client = mock_client
 
@@ -32,7 +33,7 @@ def sample_message():
         source="test_source",
         symbol="BTC",
         data={"current_price": 62500.0, "price_change_percentage_24h": 2.5},
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
 
 
@@ -109,10 +110,12 @@ def test_store_agent_decision(stm):
 def test_get_agent_decisions(stm):
     """Test retrieving agent decisions"""
     stm.redis.client.zrevrange = Mock(return_value=["decision_001", "decision_002"])
-    stm.redis.client.get = Mock(side_effect=[
-        '{"id": "decision_001", "action": "buy"}',
-        '{"id": "decision_002", "action": "sell"}'
-    ])
+    stm.redis.client.get = Mock(
+        side_effect=[
+            '{"id": "decision_001", "action": "buy"}',
+            '{"id": "decision_002", "action": "sell"}',
+        ]
+    )
 
     decisions = stm.get_agent_decisions("agent_001", limit=2)
 
@@ -155,7 +158,7 @@ def test_clear_agent_data(stm):
 
 def test_get_ttl_for_type(stm):
     """Test TTL calculation for different intelligence types"""
-    with patch('memory.short_term_memory.settings') as mock_settings:
+    with patch("memory.short_term_memory.settings") as mock_settings:
         mock_settings.TTL_LIVE_PRICES = 86400
         mock_settings.TTL_SENTIMENT = 86400
         mock_settings.TTL_WHALE_MOVEMENTS = 604800
@@ -180,7 +183,7 @@ def test_get_current_price(stm):
         source="test",
         symbol="BTC",
         data={"current_price": 62500.0},
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
 
     stm.redis.client.get = Mock(return_value=message.model_dump_json())

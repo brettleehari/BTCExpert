@@ -3,8 +3,8 @@ CIAL Service Registry
 Registry for data connectors and external service management
 """
 
-from typing import Dict, List, Optional
 from datetime import datetime
+from typing import Dict, List, Optional
 
 from api.models.intelligence import DataConnector, DataConnectorHealth, IntelligenceType
 from infrastructure.logging_config import logger
@@ -34,7 +34,7 @@ class ServiceRegistry:
         intelligence_types: List[IntelligenceType],
         reliability_score: float = 1.0,
         rate_limit: Optional[str] = None,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ) -> DataConnector:
         """
         Register a data connector.
@@ -63,22 +63,20 @@ class ServiceRegistry:
             reliability_score=reliability_score,
             rate_limit=rate_limit,
             enabled=True,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         self._connectors[connector_id] = connector
 
         # Initialize health status
         self._health_status[connector_id] = DataConnectorHealth(
-            connector_id=connector_id,
-            healthy=True,
-            success_rate=1.0
+            connector_id=connector_id, healthy=True, success_rate=1.0
         )
 
         logger.info(
             f"Data connector registered: {connector_id}",
             name=name,
-            intelligence_types=[t.value for t in intelligence_types]
+            intelligence_types=[t.value for t in intelligence_types],
         )
 
         return connector
@@ -127,7 +125,8 @@ class ServiceRegistry:
             List[DataConnector]: Matching connectors
         """
         return [
-            conn for conn in self._connectors.values()
+            conn
+            for conn in self._connectors.values()
             if intelligence_type in conn.intelligence_types and conn.enabled
         ]
 
@@ -191,7 +190,7 @@ class ServiceRegistry:
             logger.warning(
                 f"Connector unhealthy: {connector_id}",
                 success_rate=health.success_rate,
-                error_count=health.error_count
+                error_count=health.error_count,
             )
 
         # Update connector reliability score
@@ -209,7 +208,8 @@ class ServiceRegistry:
     def get_unhealthy_connectors(self) -> List[str]:
         """Get list of unhealthy connector IDs."""
         return [
-            connector_id for connector_id, health in self._health_status.items()
+            connector_id
+            for connector_id, health in self._health_status.items()
             if not health.healthy
         ]
 
@@ -234,7 +234,9 @@ class ServiceRegistry:
             "unhealthy_connectors": total_connectors - healthy_connectors,
             "total_requests": total_requests,
             "total_errors": total_errors,
-            "overall_success_rate": (total_requests - total_errors) / total_requests if total_requests > 0 else 1.0
+            "overall_success_rate": (
+                (total_requests - total_errors) / total_requests if total_requests > 0 else 1.0
+            ),
         }
 
 
@@ -269,7 +271,7 @@ def initialize_default_connectors():
             name="CoinGecko Price API",
             intelligence_types=[IntelligenceType.PRICE],
             rate_limit="50/minute",
-            metadata={"website": "https://coingecko.com", "version": "v3"}
+            metadata={"website": "https://coingecko.com", "version": "v3"},
         )
 
         # NewsAPI
@@ -278,7 +280,7 @@ def initialize_default_connectors():
             name="NewsAPI",
             intelligence_types=[IntelligenceType.SENTIMENT],
             rate_limit="1000/day",
-            metadata={"website": "https://newsapi.org"}
+            metadata={"website": "https://newsapi.org"},
         )
 
         # Etherscan
@@ -287,7 +289,7 @@ def initialize_default_connectors():
             name="Etherscan",
             intelligence_types=[IntelligenceType.ONCHAIN, IntelligenceType.WHALE],
             rate_limit="5/second",
-            metadata={"website": "https://etherscan.io"}
+            metadata={"website": "https://etherscan.io"},
         )
 
         logger.info("Default data connectors initialized")

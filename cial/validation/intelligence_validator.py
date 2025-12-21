@@ -3,18 +3,19 @@ CIAL Intelligence Validation Service
 Cross-source validation and confidence scoring for intelligence messages
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
-from memory.short_term_memory import get_short_term_memory
-from memory.long_term_memory import get_long_term_memory
 from infrastructure.logging_config import logger
+from memory.long_term_memory import get_long_term_memory
+from memory.short_term_memory import get_short_term_memory
 
 
 class ValidationResult(str, Enum):
     """Validation result status"""
+
     VALIDATED = "validated"
     SUSPICIOUS = "suspicious"
     REJECTED = "rejected"
@@ -50,7 +51,7 @@ class PriceDeviationRule(ValidationRule):
         super().__init__(
             rule_id="price_deviation",
             description="Check price deviation from historical average",
-            weight=1.0
+            weight=1.0,
         )
         self.max_deviation_percent = max_deviation_percent
 
@@ -76,7 +77,7 @@ class PriceDeviationRule(ValidationRule):
                 "passed": False,
                 "confidence": 0.3,
                 "reason": f"Price deviation {deviation:.2f}% exceeds threshold {self.max_deviation_percent}%",
-                "deviation_percent": deviation
+                "deviation_percent": deviation,
             }
 
         # Higher confidence for smaller deviations
@@ -86,7 +87,7 @@ class PriceDeviationRule(ValidationRule):
             "passed": True,
             "confidence": confidence,
             "reason": f"Price within acceptable range (deviation: {deviation:.2f}%)",
-            "deviation_percent": deviation
+            "deviation_percent": deviation,
         }
 
 
@@ -95,9 +96,7 @@ class CrossSourceValidationRule(ValidationRule):
 
     def __init__(self, min_sources: int = 2, max_variance_percent: float = 5.0):
         super().__init__(
-            rule_id="cross_source",
-            description="Validate against multiple sources",
-            weight=1.5
+            rule_id="cross_source", description="Validate against multiple sources", weight=1.5
         )
         self.min_sources = min_sources
         self.max_variance_percent = max_variance_percent
@@ -114,7 +113,7 @@ class CrossSourceValidationRule(ValidationRule):
             return {
                 "passed": True,
                 "confidence": 0.6,
-                "reason": f"Insufficient sources for validation ({len(other_sources) + 1})"
+                "reason": f"Insufficient sources for validation ({len(other_sources) + 1})",
             }
 
         # Calculate variance with other sources
@@ -128,7 +127,7 @@ class CrossSourceValidationRule(ValidationRule):
                 "confidence": 0.5,
                 "reason": f"High variance across sources: {max_variance:.2f}%",
                 "variance_percent": max_variance,
-                "sources_count": len(all_prices)
+                "sources_count": len(all_prices),
             }
 
         confidence = 1.0 - (max_variance / self.max_variance_percent) * 0.2
@@ -138,7 +137,7 @@ class CrossSourceValidationRule(ValidationRule):
             "confidence": confidence,
             "reason": f"Validated across {len(all_prices)} sources (variance: {max_variance:.2f}%)",
             "variance_percent": max_variance,
-            "sources_count": len(all_prices)
+            "sources_count": len(all_prices),
         }
 
 
@@ -147,9 +146,7 @@ class DataCompletenessRule(ValidationRule):
 
     def __init__(self):
         super().__init__(
-            rule_id="data_completeness",
-            description="Check for required data fields",
-            weight=0.8
+            rule_id="data_completeness", description="Check for required data fields", weight=0.8
         )
 
         # Required fields by intelligence type
@@ -174,7 +171,7 @@ class DataCompletenessRule(ValidationRule):
                 "passed": False,
                 "confidence": 0.3,
                 "reason": f"Missing required fields: {', '.join(missing_fields)}",
-                "missing_fields": missing_fields
+                "missing_fields": missing_fields,
             }
 
         # Check for additional valuable fields
@@ -192,7 +189,7 @@ class DataCompletenessRule(ValidationRule):
             "passed": True,
             "confidence": confidence,
             "reason": f"All required fields present ({len(present_optional)}/{len(optional)} optional fields)",
-            "optional_fields_present": len(present_optional)
+            "optional_fields_present": len(present_optional),
         }
 
 
@@ -201,9 +198,7 @@ class SourceReliabilityRule(ValidationRule):
 
     def __init__(self, min_reliability: float = 0.5):
         super().__init__(
-            rule_id="source_reliability",
-            description="Check source reliability",
-            weight=1.2
+            rule_id="source_reliability", description="Check source reliability", weight=1.2
         )
         self.min_reliability = min_reliability
 
@@ -216,14 +211,14 @@ class SourceReliabilityRule(ValidationRule):
                 "passed": False,
                 "confidence": source_reliability,
                 "reason": f"Source reliability {source_reliability:.2f} below threshold {self.min_reliability}",
-                "source_reliability": source_reliability
+                "source_reliability": source_reliability,
             }
 
         return {
             "passed": True,
             "confidence": source_reliability,
             "reason": f"Source is reliable ({source_reliability:.2f})",
-            "source_reliability": source_reliability
+            "source_reliability": source_reliability,
         }
 
 
@@ -231,11 +226,7 @@ class TimelinessRule(ValidationRule):
     """Validate that data is recent and timely"""
 
     def __init__(self, max_age_seconds: int = 300):
-        super().__init__(
-            rule_id="timeliness",
-            description="Check data freshness",
-            weight=0.7
-        )
+        super().__init__(rule_id="timeliness", description="Check data freshness", weight=0.7)
         self.max_age_seconds = max_age_seconds
 
     def validate(self, message: IntelligenceMessage, context: Dict[str, Any]) -> Dict[str, Any]:
@@ -247,7 +238,7 @@ class TimelinessRule(ValidationRule):
                 "passed": False,
                 "confidence": 0.5,
                 "reason": f"Data is stale ({age_seconds:.0f}s old, max: {self.max_age_seconds}s)",
-                "age_seconds": age_seconds
+                "age_seconds": age_seconds,
             }
 
         # Confidence decreases with age
@@ -257,7 +248,7 @@ class TimelinessRule(ValidationRule):
             "passed": True,
             "confidence": confidence,
             "reason": f"Data is fresh ({age_seconds:.0f}s old)",
-            "age_seconds": age_seconds
+            "age_seconds": age_seconds,
         }
 
 
@@ -323,12 +314,14 @@ class IntelligenceValidator:
 
             except Exception as e:
                 logger.error(f"Validation rule {rule.rule_id} failed: {e}", exc_info=True)
-                rule_results.append({
-                    "rule_id": rule.rule_id,
-                    "passed": False,
-                    "confidence": 0.5,
-                    "reason": f"Rule execution error: {str(e)}"
-                })
+                rule_results.append(
+                    {
+                        "rule_id": rule.rule_id,
+                        "passed": False,
+                        "confidence": 0.5,
+                        "reason": f"Rule execution error: {str(e)}",
+                    }
+                )
 
         # Calculate overall confidence
         overall_confidence = weighted_confidence / total_weight if total_weight > 0 else 0.5
@@ -348,14 +341,14 @@ class IntelligenceValidator:
             "rules_total": len(rule_results),
             "rule_results": rule_results,
             "validated_at": datetime.utcnow().isoformat(),
-            "message_id": message.id
+            "message_id": message.id,
         }
 
         logger.info(
             f"Validation complete: {status.value}",
             message_id=message.id,
             confidence=overall_confidence,
-            rules_passed=f"{validation_result['rules_passed']}/{validation_result['rules_total']}"
+            rules_passed=f"{validation_result['rules_passed']}/{validation_result['rules_total']}",
         )
 
         return validation_result
@@ -377,9 +370,7 @@ class IntelligenceValidator:
             if message.type == IntelligenceType.PRICE and message.symbol:
                 # Get recent prices from STM
                 recent_intelligence = self.stm.get_recent_intelligence(
-                    intelligence_type=message.type,
-                    symbol=message.symbol,
-                    limit=10
+                    intelligence_type=message.type, symbol=message.symbol, limit=10
                 )
 
                 historical_prices = [
@@ -402,6 +393,7 @@ class IntelligenceValidator:
 
             # Get source reliability from service registry
             from core.service_registry import get_service_registry
+
             registry = get_service_registry()
             connector = registry.get_connector(message.source)
 
@@ -428,11 +420,7 @@ class IntelligenceValidator:
     def get_rules(self) -> List[Dict[str, Any]]:
         """Get list of validation rules."""
         return [
-            {
-                "rule_id": rule.rule_id,
-                "description": rule.description,
-                "weight": rule.weight
-            }
+            {"rule_id": rule.rule_id, "description": rule.description, "weight": rule.weight}
             for rule in self.rules
         ]
 

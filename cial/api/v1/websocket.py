@@ -5,14 +5,15 @@ Session 18: Real-Time Intelligence Streaming
 WebSocket endpoints for real-time intelligence delivery.
 """
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
-from typing import Optional, Dict, Any
 import json
+from typing import Any, Dict, Optional
 
-from api.models.responses import VersionedResponse, success_response, error_response
-from infrastructure.websocket_manager import get_websocket_manager
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+
+from api.models.responses import VersionedResponse, error_response, success_response
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
+from infrastructure.websocket_manager import get_websocket_manager
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ router = APIRouter()
 @router.websocket("/stream")
 async def intelligence_stream(
     websocket: WebSocket,
-    auth_token: Optional[str] = Query(None, description="Optional authentication token")
+    auth_token: Optional[str] = Query(None, description="Optional authentication token"),
 ):
     """
     WebSocket endpoint for real-time intelligence streaming.
@@ -127,9 +128,7 @@ async def intelligence_stream(
 
     # Connect client
     connection_id = await ws_manager.connect(
-        websocket=websocket,
-        client_ip=client_ip,
-        auth_token=auth_token
+        websocket=websocket, client_ip=client_ip, auth_token=auth_token
     )
 
     logger.info(f"WebSocket client connected: {connection_id} from {client_ip}")
@@ -145,20 +144,13 @@ async def intelligence_stream(
                 data = json.loads(message)
 
                 # Handle message
-                await ws_manager.handle_client_message(
-                    connection_id=connection_id,
-                    message=data
-                )
+                await ws_manager.handle_client_message(connection_id=connection_id, message=data)
 
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON from {connection_id}: {message}")
                 await ws_manager.send_to_client(
                     connection_id=connection_id,
-                    message={
-                        "type": "error",
-                        "error": "Invalid JSON format",
-                        "message": message
-                    }
+                    message={"type": "error", "error": "Invalid JSON format", "message": message},
                 )
 
     except WebSocketDisconnect:
@@ -193,11 +185,8 @@ async def get_connections() -> VersionedResponse[Dict[str, Any]]:
         connections = ws_manager.get_all_connections()
 
         return success_response(
-            data={
-                "total_connections": len(connections),
-                "connections": connections
-            },
-            message="Active WebSocket connections retrieved"
+            data={"total_connections": len(connections), "connections": connections},
+            message="Active WebSocket connections retrieved",
         )
 
     except Exception as e:
@@ -205,7 +194,7 @@ async def get_connections() -> VersionedResponse[Dict[str, Any]]:
         return error_response(
             message="Failed to retrieve connections",
             error_code="WEBSOCKET_CONNECTIONS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -227,13 +216,11 @@ async def get_connection_info(connection_id: str) -> VersionedResponse[Dict[str,
 
         if connection_info:
             return success_response(
-                data=connection_info,
-                message="Connection information retrieved"
+                data=connection_info, message="Connection information retrieved"
             )
         else:
             return error_response(
-                message=f"Connection not found: {connection_id}",
-                error_code="CONNECTION_NOT_FOUND"
+                message=f"Connection not found: {connection_id}", error_code="CONNECTION_NOT_FOUND"
             )
 
     except Exception as e:
@@ -241,7 +228,7 @@ async def get_connection_info(connection_id: str) -> VersionedResponse[Dict[str,
         return error_response(
             message="Failed to retrieve connection info",
             error_code="WEBSOCKET_CONNECTION_INFO_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -265,17 +252,14 @@ async def get_websocket_stats() -> VersionedResponse[Dict[str, Any]]:
         ws_manager = await get_websocket_manager()
         stats = ws_manager.get_stats()
 
-        return success_response(
-            data=stats,
-            message="WebSocket statistics retrieved"
-        )
+        return success_response(data=stats, message="WebSocket statistics retrieved")
 
     except Exception as e:
         logger.error(f"Failed to get WebSocket stats: {e}", exc_info=True)
         return error_response(
             message="Failed to retrieve WebSocket statistics",
             error_code="WEBSOCKET_STATS_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -284,9 +268,8 @@ async def get_websocket_stats() -> VersionedResponse[Dict[str, Any]]:
 async def broadcast_message(
     message: Dict[str, Any],
     subscription_filter: Optional[str] = Query(
-        None,
-        description="Only broadcast to clients with this subscription"
-    )
+        None, description="Only broadcast to clients with this subscription"
+    ),
 ) -> VersionedResponse[Dict[str, Any]]:
     """
     Broadcast a message to all connected WebSocket clients.
@@ -313,18 +296,15 @@ async def broadcast_message(
     try:
         ws_manager = await get_websocket_manager()
 
-        await ws_manager.broadcast(
-            message=message,
-            subscription_filter=subscription_filter
-        )
+        await ws_manager.broadcast(message=message, subscription_filter=subscription_filter)
 
         return success_response(
             data={
                 "broadcasted": True,
                 "active_connections": len(ws_manager.connections),
-                "subscription_filter": subscription_filter
+                "subscription_filter": subscription_filter,
             },
-            message="Message broadcasted successfully"
+            message="Message broadcasted successfully",
         )
 
     except Exception as e:
@@ -332,7 +312,7 @@ async def broadcast_message(
         return error_response(
             message="Failed to broadcast message",
             error_code="WEBSOCKET_BROADCAST_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -352,9 +332,9 @@ async def websocket_health() -> VersionedResponse[Dict[str, Any]]:
                 "status": "healthy",
                 "active_connections": len(ws_manager.connections),
                 "pubsub_running": ws_manager._running,
-                "redis_connected": ws_manager.redis_client is not None
+                "redis_connected": ws_manager.redis_client is not None,
             },
-            message="WebSocket system is healthy"
+            message="WebSocket system is healthy",
         )
 
     except Exception as e:
@@ -362,5 +342,5 @@ async def websocket_health() -> VersionedResponse[Dict[str, Any]]:
         return error_response(
             message="WebSocket health check failed",
             error_code="WEBSOCKET_HEALTH_ERROR",
-            details={"error": str(e)}
+            details={"error": str(e)},
         )

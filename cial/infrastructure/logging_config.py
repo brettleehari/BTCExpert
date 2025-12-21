@@ -3,10 +3,11 @@ CIAL Logging Configuration
 Structured logging using structlog
 """
 
-import structlog
 import logging
 import sys
 from typing import Any
+
+import structlog
 
 
 def setup_logging(log_level: str = "INFO") -> structlog.BoundLogger:
@@ -38,8 +39,11 @@ def setup_logging(log_level: str = "INFO") -> structlog.BoundLogger:
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer() if log_level != "DEBUG"
-            else structlog.dev.ConsoleRenderer(),
+            (
+                structlog.processors.JSONRenderer()
+                if log_level != "DEBUG"
+                else structlog.dev.ConsoleRenderer()
+            ),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
@@ -56,39 +60,21 @@ logger = setup_logging()
 
 def log_api_request(method: str, path: str, **kwargs: Any) -> None:
     """Log API request with structured data."""
-    logger.info(
-        "api_request",
-        method=method,
-        path=path,
-        **kwargs
-    )
+    logger.info("api_request", method=method, path=path, **kwargs)
 
 
 def log_api_response(status_code: int, duration: float, **kwargs: Any) -> None:
     """Log API response with structured data."""
     logger.info(
-        "api_response",
-        status_code=status_code,
-        duration_ms=round(duration * 1000, 2),
-        **kwargs
+        "api_response", status_code=status_code, duration_ms=round(duration * 1000, 2), **kwargs
     )
 
 
 def log_intelligence_event(event_type: str, source: str, **kwargs: Any) -> None:
     """Log intelligence event with structured data."""
-    logger.info(
-        "intelligence_event",
-        event_type=event_type,
-        source=source,
-        **kwargs
-    )
+    logger.info("intelligence_event", event_type=event_type, source=source, **kwargs)
 
 
 def log_agent_activity(agent_id: str, action: str, **kwargs: Any) -> None:
     """Log agent activity with structured data."""
-    logger.info(
-        "agent_activity",
-        agent_id=agent_id,
-        action=action,
-        **kwargs
-    )
+    logger.info("agent_activity", agent_id=agent_id, action=action, **kwargs)

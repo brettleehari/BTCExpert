@@ -5,27 +5,25 @@ First data source integration with complete intelligence pipeline
 Version: 2.0 - Production Ready with Resilience Patterns
 """
 
-import httpx
-from typing import Optional, Dict, Any, List
-from datetime import datetime
 import asyncio
 import time
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import httpx
 
 from api.models.intelligence import IntelligenceType, PriceIntelligence
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
+from infrastructure.observability import record_connector_request, trace_operation
 from infrastructure.resilience import (
     circuit_breaker,
-    timeout,
-    retry_with_backoff,
+    get_bulkhead,
     get_health_check,
-    get_bulkhead
-)
-from infrastructure.observability import (
-    trace_operation,
-    record_connector_request
+    retry_with_backoff,
+    timeout,
 )
 
 
@@ -93,7 +91,7 @@ class CoinGeckoConnector:
                 record_connector_request(
                     connector=self.CONNECTOR_ID,
                     success=True,
-                    duration=response_time_ms / 1000.0  # Convert to seconds
+                    duration=response_time_ms / 1000.0,  # Convert to seconds
                 )
 
                 return result
@@ -108,14 +106,14 @@ class CoinGeckoConnector:
             record_connector_request(
                 connector=self.CONNECTOR_ID,
                 success=False,
-                duration=response_time_ms / 1000.0  # Convert to seconds
+                duration=response_time_ms / 1000.0,  # Convert to seconds
             )
 
             logger.error(
                 f"Failed to fetch price for {symbol}",
                 error=str(e),
                 health_status=self.health.get_status().value,
-                reliability=self.health.reliability_score
+                reliability=self.health.reliability_score,
             )
             return None
 
@@ -146,7 +144,7 @@ class CoinGeckoConnector:
                 "include_24hr_vol": "true",
                 "include_24hr_change": "true",
                 "include_market_cap": "true",
-                "include_last_updated_at": "true"
+                "include_last_updated_at": "true",
             }
 
             if self.api_key:
@@ -170,13 +168,13 @@ class CoinGeckoConnector:
                 price_change_24h=coin_data.get("usd_24h_change", 0),
                 price_change_percentage_24h=coin_data.get("usd_24h_change", 0),
                 volume_24h=coin_data.get("usd_24h_vol", 0),
-                market_cap=coin_data.get("usd_market_cap", 0)
+                market_cap=coin_data.get("usd_market_cap", 0),
             )
 
             logger.info(
                 f"Fetched price for {symbol}",
                 price=price_intel.current_price,
-                change_24h=price_intel.price_change_percentage_24h
+                change_24h=price_intel.price_change_percentage_24h,
             )
 
             return price_intel
@@ -219,7 +217,9 @@ class CoinGeckoConnector:
     @circuit_breaker("coingecko_api", fail_max=3, timeout_duration=30)
     @timeout(8.0)  # Longer timeout for batch requests
     @retry_with_backoff(max_attempts=3, min_wait=1, max_wait=10)
-    async def _fetch_prices_batch_with_resilience(self, symbols: List[str]) -> Dict[str, PriceIntelligence]:
+    async def _fetch_prices_batch_with_resilience(
+        self, symbols: List[str]
+    ) -> Dict[str, PriceIntelligence]:
         """Core batch price fetching logic with resilience decorators."""
         # Map symbols to CoinGecko IDs
         coin_ids = [self._symbol_to_id(s) for s in symbols]
@@ -234,7 +234,7 @@ class CoinGeckoConnector:
                 "vs_currencies": "usd",
                 "include_24hr_vol": "true",
                 "include_24hr_change": "true",
-                "include_market_cap": "true"
+                "include_market_cap": "true",
             }
 
             if self.api_key:
@@ -255,7 +255,7 @@ class CoinGeckoConnector:
                         price_change_24h=coin_data.get("usd_24h_change", 0),
                         price_change_percentage_24h=coin_data.get("usd_24h_change", 0),
                         volume_24h=coin_data.get("usd_24h_vol", 0),
-                        market_cap=coin_data.get("usd_market_cap", 0)
+                        market_cap=coin_data.get("usd_market_cap", 0),
                     )
 
             logger.info(f"Fetched batch prices for {len(results)} symbols")
@@ -286,16 +286,13 @@ class CoinGeckoConnector:
             source=self.CONNECTOR_ID,
             data=price_intel.model_dump(),
             symbol=symbol.upper(),
-            metadata={
-                "connector": self.CONNECTOR_ID,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            metadata={"connector": self.CONNECTOR_ID, "timestamp": datetime.utcnow().isoformat()},
         )
 
         logger.info(
             f"Price intelligence ingested: {symbol}",
             message_id=message.id,
-            importance=message.importance.value
+            importance=message.importance.value,
         )
 
         return True
@@ -312,7 +309,7 @@ class CoinGeckoConnector:
             "ADA": "cardano",
             "DOGE": "dogecoin",
             "DOT": "polkadot",
-            "MATIC": "matic-network"
+            "MATIC": "matic-network",
         }
 
         return symbol_map.get(symbol.upper(), symbol.lower())

@@ -11,9 +11,10 @@ Features:
 - Index usage statistics
 """
 
-from typing import Dict, List, Optional, Any
 import time
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import asyncpg
 
 from infrastructure.config import settings
@@ -52,71 +53,69 @@ class DatabaseOptimizer:
                 "name": "idx_intelligence_symbol",
                 "table": "intelligence_records",
                 "columns": ["symbol"],
-                "description": "Fast symbol lookup"
+                "description": "Fast symbol lookup",
             },
             {
                 "name": "idx_intelligence_type",
                 "table": "intelligence_records",
                 "columns": ["intelligence_type"],
-                "description": "Filter by intelligence type"
+                "description": "Filter by intelligence type",
             },
             {
                 "name": "idx_intelligence_timestamp",
                 "table": "intelligence_records",
                 "columns": ["timestamp DESC"],
-                "description": "Time-based queries (latest first)"
+                "description": "Time-based queries (latest first)",
             },
             {
                 "name": "idx_intelligence_symbol_timestamp",
                 "table": "intelligence_records",
                 "columns": ["symbol", "timestamp DESC"],
-                "description": "Symbol + time queries (composite)"
+                "description": "Symbol + time queries (composite)",
             },
             {
                 "name": "idx_intelligence_symbol_type",
                 "table": "intelligence_records",
                 "columns": ["symbol", "intelligence_type"],
-                "description": "Symbol + type queries (composite)"
+                "description": "Symbol + type queries (composite)",
             },
             {
                 "name": "idx_intelligence_timestamp_type",
                 "table": "intelligence_records",
                 "columns": ["timestamp DESC", "intelligence_type"],
-                "description": "Time + type queries (composite)"
+                "description": "Time + type queries (composite)",
             },
-
             # Agent memory indexes
             {
                 "name": "idx_agent_memory_agent_id",
                 "table": "agent_memory",
                 "columns": ["agent_id"],
-                "description": "Fast agent lookup"
+                "description": "Fast agent lookup",
             },
             {
                 "name": "idx_agent_memory_context_type",
                 "table": "agent_memory",
                 "columns": ["context_type"],
-                "description": "Filter by context type"
+                "description": "Filter by context type",
             },
             {
                 "name": "idx_agent_memory_created_at",
                 "table": "agent_memory",
                 "columns": ["created_at DESC"],
-                "description": "Time-based agent memory queries"
+                "description": "Time-based agent memory queries",
             },
-
             # Validation records indexes
             {
                 "name": "idx_validation_symbol",
                 "table": "validation_records",
                 "columns": ["symbol"],
-                "description": "Fast validation lookup by symbol"
+                "description": "Fast validation lookup by symbol",
             },
             {
                 "name": "idx_validation_timestamp",
                 "table": "validation_records",
                 "columns": ["timestamp DESC"],
-                "description": "Recent validation queries"
+                "description": "Recent validation queries",
             },
         ]
 
@@ -138,10 +137,7 @@ class DatabaseOptimizer:
 
         logger.info(f"Created {created}/{len(indexes)} indexes")
 
-        metrics.increment_counter(
-            'cial_database_indexes_created_total',
-            value=created
-        )
+        metrics.increment_counter("cial_database_indexes_created_total", value=created)
 
         return created
 
@@ -170,7 +166,7 @@ class DatabaseOptimizer:
                 FROM intelligence_records
                 GROUP BY symbol
                 WITH DATA
-                """
+                """,
             },
             {
                 "name": "mv_intelligence_type_summary",
@@ -186,7 +182,7 @@ class DatabaseOptimizer:
                 FROM intelligence_records
                 GROUP BY intelligence_type
                 WITH DATA
-                """
+                """,
             },
             {
                 "name": "mv_daily_intelligence_counts",
@@ -202,7 +198,7 @@ class DatabaseOptimizer:
                 WHERE timestamp >= NOW() - INTERVAL '90 days'
                 GROUP BY DATE(timestamp), intelligence_type, symbol
                 WITH DATA
-                """
+                """,
             },
             {
                 "name": "mv_agent_activity_summary",
@@ -218,8 +214,8 @@ class DatabaseOptimizer:
                 FROM agent_memory
                 GROUP BY agent_id
                 WITH DATA
-                """
-            }
+                """,
+            },
         ]
 
         created = 0
@@ -247,10 +243,7 @@ class DatabaseOptimizer:
 
         logger.info(f"Created {created}/{len(views)} materialized views")
 
-        metrics.increment_counter(
-            'cial_database_materialized_views_created_total',
-            value=created
-        )
+        metrics.increment_counter("cial_database_materialized_views_created_total", value=created)
 
         return created
 
@@ -271,7 +264,7 @@ class DatabaseOptimizer:
             "mv_symbol_statistics",
             "mv_intelligence_type_summary",
             "mv_daily_intelligence_counts",
-            "mv_agent_activity_summary"
+            "mv_agent_activity_summary",
         ]
 
         refreshed = 0
@@ -288,9 +281,7 @@ class DatabaseOptimizer:
                 refreshed += 1
 
                 metrics.record_histogram(
-                    'cial_database_mv_refresh_seconds',
-                    duration,
-                    {'view': view_name}
+                    "cial_database_mv_refresh_seconds", duration, {"view": view_name}
                 )
 
             except Exception as e:
@@ -326,7 +317,7 @@ class DatabaseOptimizer:
                     "query": query,
                     "execution_time_ms": duration * 1000,
                     "plan": plan,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
 
                 # Store query stats
@@ -337,8 +328,8 @@ class DatabaseOptimizer:
                         "executions": 0,
                         "total_time_ms": 0,
                         "avg_time_ms": 0,
-                        "min_time_ms": float('inf'),
-                        "max_time_ms": 0
+                        "min_time_ms": float("inf"),
+                        "max_time_ms": 0,
                     }
 
                 stats = self.query_stats[query_hash]
@@ -476,11 +467,7 @@ class DatabaseOptimizer:
             Summary statistics
         """
         if not self.query_stats:
-            return {
-                "total_queries": 0,
-                "total_executions": 0,
-                "avg_query_time_ms": 0
-            }
+            return {"total_queries": 0, "total_executions": 0, "avg_query_time_ms": 0}
 
         total_executions = sum(s["executions"] for s in self.query_stats.values())
         total_time = sum(s["total_time_ms"] for s in self.query_stats.values())
@@ -490,7 +477,7 @@ class DatabaseOptimizer:
             "total_executions": total_executions,
             "total_time_ms": total_time,
             "avg_query_time_ms": total_time / total_executions if total_executions > 0 else 0,
-            "queries": list(self.query_stats.values())
+            "queries": list(self.query_stats.values()),
         }
 
 
@@ -508,6 +495,7 @@ async def get_database_optimizer() -> DatabaseOptimizer:
     global _db_optimizer
     if _db_optimizer is None:
         from infrastructure.container import get_container
+
         container = get_container()
         postgres_manager = container.postgres_manager()
         _db_optimizer = DatabaseOptimizer(postgres_manager)

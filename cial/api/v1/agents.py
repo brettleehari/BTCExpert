@@ -3,22 +3,23 @@ CIAL Agents API Router
 Endpoints for agent registration and management
 """
 
-from fastapi import APIRouter, HTTPException, Body, Query
 from typing import List
 
+from fastapi import APIRouter, Body, HTTPException, Query
+
 from api.models.intelligence import (
-    AgentRegistration,
     Agent,
-    AgentStatusUpdate,
-    AgentRegistrationResponse,
     AgentListResponse,
+    AgentRegistration,
+    AgentRegistrationResponse,
+    AgentStatus,
+    AgentStatusUpdate,
     AgentType,
-    AgentStatus
 )
 from core.agent_registry import get_agent_registry
 from core.service_registry import get_service_registry
-from infrastructure.logging_config import logger
 from infrastructure.config import settings
+from infrastructure.logging_config import logger
 
 router = APIRouter()
 
@@ -57,14 +58,16 @@ async def register_agent(agent: AgentRegistration = Body(...)):
             agent_id=agent.agent_id,
             message=f"Agent {agent.agent_id} registered successfully",
             websocket_url=websocket_url,
-            kafka_topics=kafka_topics
+            kafka_topics=kafka_topics,
         )
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to register agent: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during agent registration")
+        raise HTTPException(
+            status_code=500, detail="Internal server error during agent registration"
+        )
 
 
 @router.get("/{agent_id}/status", response_model=Agent)
@@ -85,10 +88,7 @@ async def get_agent_status(agent_id: str):
 
 
 @router.put("/{agent_id}/status")
-async def update_agent_status(
-    agent_id: str,
-    status_update: AgentStatusUpdate = Body(...)
-):
+async def update_agent_status(agent_id: str, status_update: AgentStatusUpdate = Body(...)):
     """
     Update agent status.
 
@@ -102,9 +102,7 @@ async def update_agent_status(
     registry = get_agent_registry()
 
     success = registry.update_agent_status(
-        agent_id=agent_id,
-        status=status_update.status,
-        metadata=status_update.metadata
+        agent_id=agent_id, status=status_update.status, metadata=status_update.metadata
     )
 
     if not success:
@@ -114,7 +112,7 @@ async def update_agent_status(
         "success": True,
         "agent_id": agent_id,
         "status": status_update.status.value,
-        "message": "Agent status updated successfully"
+        "message": "Agent status updated successfully",
     }
 
 
@@ -135,18 +133,14 @@ async def unregister_agent(agent_id: str):
     if not success:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
 
-    return {
-        "success": True,
-        "agent_id": agent_id,
-        "message": "Agent unregistered successfully"
-    }
+    return {"success": True, "agent_id": agent_id, "message": "Agent unregistered successfully"}
 
 
 @router.get("/", response_model=AgentListResponse)
 async def list_agents(
     agent_type: AgentType = Query(None, description="Filter by agent type"),
     status: AgentStatus = Query(None, description="Filter by status"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of agents to return")
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of agents to return"),
 ):
     """
     List all registered agents with optional filtering.
@@ -174,10 +168,7 @@ async def list_agents(
     # Apply limit
     agents = agents[:limit]
 
-    return AgentListResponse(
-        total=len(agents),
-        agents=agents
-    )
+    return AgentListResponse(total=len(agents), agents=agents)
 
 
 @router.get("/stats")

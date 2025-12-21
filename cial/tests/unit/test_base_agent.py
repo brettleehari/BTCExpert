@@ -2,19 +2,20 @@
 Unit tests for Base Agent
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from agents.base_agent import BaseAgent, AgentDecision, AgentDecisionType
+import pytest
+
+from agents.base_agent import AgentDecision, AgentDecisionType, BaseAgent
 from api.models.intelligence import (
+    AgentCapabilities,
+    AgentStatus,
+    AgentType,
+    IntelligenceImportance,
     IntelligenceMessage,
     IntelligenceType,
-    IntelligenceImportance,
-    AgentType,
-    AgentCapabilities,
-    AgentStatus
 )
 
 
@@ -30,9 +31,7 @@ class TestAgent(BaseAgent):
         """Store processed messages."""
         self.processed_messages.append(message)
         return AgentDecision(
-            decision_type=AgentDecisionType.ANALYZE,
-            confidence=0.8,
-            reasoning="Test decision"
+            decision_type=AgentDecisionType.ANALYZE, confidence=0.8, reasoning="Test decision"
         )
 
     async def execute_decision(self, decision):
@@ -47,20 +46,20 @@ def agent_capabilities():
         intelligence_types=[IntelligenceType.PRICE, IntelligenceType.SENTIMENT],
         symbols=["BTC", "ETH"],
         min_importance=IntelligenceImportance.NORMAL,
-        real_time=True
+        real_time=True,
     )
 
 
 @pytest.fixture
 def test_agent(agent_capabilities):
     """Create test agent instance."""
-    with patch('agents.base_agent.get_short_term_memory'), \
-         patch('agents.base_agent.get_long_term_memory'):
+    with (
+        patch("agents.base_agent.get_short_term_memory"),
+        patch("agents.base_agent.get_long_term_memory"),
+    ):
 
         agent = TestAgent(
-            agent_id="test_agent_001",
-            agent_type=AgentType.TRADING,
-            capabilities=agent_capabilities
+            agent_id="test_agent_001", agent_type=AgentType.TRADING, capabilities=agent_capabilities
         )
         return agent
 
@@ -77,7 +76,7 @@ def sample_intelligence():
         data={"current_price": 62500.0},
         metadata={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
 
@@ -157,7 +156,7 @@ async def test_intelligence_filtering_by_type(test_agent):
         source="test",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     # Should NOT process (WHALE not in capabilities)
@@ -168,7 +167,7 @@ async def test_intelligence_filtering_by_type(test_agent):
         source="test",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await test_agent.receive_intelligence(price_message)
@@ -197,7 +196,7 @@ async def test_intelligence_filtering_by_symbol(test_agent):
         symbol="BTC",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     # Should NOT process (SOL not in capabilities)
@@ -209,7 +208,7 @@ async def test_intelligence_filtering_by_symbol(test_agent):
         symbol="SOL",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await test_agent.receive_intelligence(btc_message)
@@ -237,7 +236,7 @@ async def test_intelligence_filtering_by_importance(test_agent):
         symbol="BTC",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     # Should NOT process (LOW < NORMAL)
@@ -249,7 +248,7 @@ async def test_intelligence_filtering_by_importance(test_agent):
         symbol="BTC",
         data={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await test_agent.receive_intelligence(normal_message)
@@ -270,7 +269,7 @@ def test_agent_decision_creation():
         confidence=0.85,
         reasoning="Price dipped below support",
         data={"symbol": "BTC", "price": 60000},
-        metadata={"strategy": "mean_reversion"}
+        metadata={"strategy": "mean_reversion"},
     )
 
     assert decision.decision_type == AgentDecisionType.BUY
@@ -283,11 +282,7 @@ def test_agent_decision_creation():
 
 def test_agent_decision_to_dict():
     """Test AgentDecision serialization."""
-    decision = AgentDecision(
-        decision_type=AgentDecisionType.SELL,
-        confidence=0.9,
-        reasoning="Test"
-    )
+    decision = AgentDecision(decision_type=AgentDecisionType.SELL, confidence=0.9, reasoning="Test")
 
     decision_dict = decision.to_dict()
 
@@ -346,7 +341,7 @@ async def test_agent_not_processing_when_inactive(test_agent, sample_intelligenc
 @pytest.mark.asyncio
 async def test_context_update_with_intelligence(test_agent, sample_intelligence):
     """Test that agent context is updated with intelligence."""
-    with patch.object(test_agent.stm, 'store_agent_context') as mock_store:
+    with patch.object(test_agent.stm, "store_agent_context") as mock_store:
         await test_agent.start()
         await test_agent.receive_intelligence(sample_intelligence)
         await asyncio.sleep(0.2)
@@ -354,7 +349,7 @@ async def test_context_update_with_intelligence(test_agent, sample_intelligence)
         # Verify context was stored
         assert mock_store.called
         call_args = mock_store.call_args
-        assert call_args.kwargs['agent_id'] == "test_agent_001"
-        assert 'last_price' in call_args.kwargs['context']
+        assert call_args.kwargs["agent_id"] == "test_agent_001"
+        assert "last_price" in call_args.kwargs["context"]
 
         await test_agent.stop()

@@ -3,35 +3,33 @@ Integration tests for complete Agent Pipeline
 Tests the full flow: Intelligence → Broker → Agent → Decision → Execution
 """
 
-import pytest
 import asyncio
-from unittest.mock import patch, Mock
 from datetime import datetime
+from unittest.mock import Mock, patch
 
-from agents.sample_price_monitor_agent import PriceMonitorAgent
+import pytest
+
 from agents.base_agent import AgentDecisionType
-from api.models.intelligence import (
-    IntelligenceMessage,
-    IntelligenceType,
-    IntelligenceImportance
-)
+from agents.sample_price_monitor_agent import PriceMonitorAgent
+from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 
 
 @pytest.fixture
 def mock_memory():
     """Mock memory systems."""
-    with patch('agents.base_agent.get_short_term_memory') as mock_stm, \
-         patch('agents.base_agent.get_long_term_memory') as mock_ltm:
+    with (
+        patch("agents.base_agent.get_short_term_memory") as mock_stm,
+        patch("agents.base_agent.get_long_term_memory") as mock_ltm,
+    ):
 
         mock_stm_instance = Mock()
         mock_ltm_instance = Mock()
 
         mock_stm_instance.store_agent_context = Mock()
         mock_stm_instance.store_agent_decision = Mock()
-        mock_stm_instance.get_current_price = Mock(return_value={
-            "current_price": 62500.0,
-            "price_change_percentage_24h": 2.5
-        })
+        mock_stm_instance.get_current_price = Mock(
+            return_value={"current_price": 62500.0, "price_change_percentage_24h": 2.5}
+        )
         mock_stm_instance.get_agent_decisions = Mock(return_value=[])
 
         mock_ltm_instance.get_historical_prices = Mock(return_value=[])
@@ -39,10 +37,7 @@ def mock_memory():
         mock_stm.return_value = mock_stm_instance
         mock_ltm.return_value = mock_ltm_instance
 
-        yield {
-            'stm': mock_stm_instance,
-            'ltm': mock_ltm_instance
-        }
+        yield {"stm": mock_stm_instance, "ltm": mock_ltm_instance}
 
 
 @pytest.mark.integration
@@ -63,7 +58,7 @@ async def test_complete_agent_pipeline(mock_memory):
         agent_id="integration_test_agent",
         symbols=["BTC"],
         alert_threshold=5.0,
-        recommendation_threshold=10.0
+        recommendation_threshold=10.0,
     )
 
     # Start agent
@@ -80,11 +75,11 @@ async def test_complete_agent_pipeline(mock_memory):
             "current_price": 70000.0,  # 12% increase from baseline (62500)
             "price_change_percentage_24h": 12.0,
             "volume_24h": 35000000000,
-            "market_cap": 1400000000000
+            "market_cap": 1400000000000,
         },
         metadata={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     # Send intelligence to agent
@@ -102,7 +97,7 @@ async def test_complete_agent_pipeline(mock_memory):
     assert "sell" in decisions or "alert" in decisions
 
     # Verify decision was stored
-    assert mock_memory['stm'].store_agent_decision.called
+    assert mock_memory["stm"].store_agent_decision.called
 
     # Stop agent
     await agent.stop()
@@ -112,11 +107,7 @@ async def test_complete_agent_pipeline(mock_memory):
 @pytest.mark.asyncio
 async def test_agent_alert_generation(mock_memory):
     """Test that agent generates alerts on moderate price changes."""
-    agent = PriceMonitorAgent(
-        agent_id="alert_test_agent",
-        symbols=["ETH"],
-        alert_threshold=5.0
-    )
+    agent = PriceMonitorAgent(agent_id="alert_test_agent", symbols=["ETH"], alert_threshold=5.0)
 
     await agent.start()
 
@@ -131,11 +122,11 @@ async def test_agent_alert_generation(mock_memory):
             "current_price": 3300.0,  # 6.5% increase from baseline (3100)
             "price_change_percentage_24h": 6.5,
             "volume_24h": 18000000000,
-            "market_cap": 400000000000
+            "market_cap": 400000000000,
         },
         metadata={},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await agent.receive_intelligence(intelligence)
@@ -153,9 +144,7 @@ async def test_agent_alert_generation(mock_memory):
 async def test_agent_filters_by_symbol(mock_memory):
     """Test that agent only processes intelligence for configured symbols."""
     agent = PriceMonitorAgent(
-        agent_id="filter_test_agent",
-        symbols=["BTC"],  # Only BTC
-        alert_threshold=5.0
+        agent_id="filter_test_agent", symbols=["BTC"], alert_threshold=5.0  # Only BTC
     )
 
     await agent.start()
@@ -169,7 +158,7 @@ async def test_agent_filters_by_symbol(mock_memory):
         symbol="BTC",
         data={"current_price": 63000.0, "price_change_percentage_24h": 1.0},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     # ETH intelligence (should NOT process)
@@ -181,7 +170,7 @@ async def test_agent_filters_by_symbol(mock_memory):
         symbol="ETH",
         data={"current_price": 3200.0, "price_change_percentage_24h": 1.0},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await agent.receive_intelligence(btc_intelligence)
@@ -200,10 +189,7 @@ async def test_agent_filters_by_symbol(mock_memory):
 @pytest.mark.asyncio
 async def test_agent_context_persistence(mock_memory):
     """Test that agent context is persisted to STM."""
-    agent = PriceMonitorAgent(
-        agent_id="context_test_agent",
-        symbols=["BTC"]
-    )
+    agent = PriceMonitorAgent(agent_id="context_test_agent", symbols=["BTC"])
 
     await agent.start()
 
@@ -215,14 +201,14 @@ async def test_agent_context_persistence(mock_memory):
         symbol="BTC",
         data={"current_price": 62500.0},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await agent.receive_intelligence(intelligence)
     await asyncio.sleep(0.3)
 
     # Verify context was stored
-    assert mock_memory['stm'].store_agent_context.called
+    assert mock_memory["stm"].store_agent_context.called
 
     # Get agent context
     context = agent.get_context()
@@ -237,9 +223,7 @@ async def test_agent_context_persistence(mock_memory):
 async def test_agent_decision_tracking(mock_memory):
     """Test that agent decisions are tracked and accessible."""
     agent = PriceMonitorAgent(
-        agent_id="decision_track_agent",
-        symbols=["BTC"],
-        recommendation_threshold=5.0
+        agent_id="decision_track_agent", symbols=["BTC"], recommendation_threshold=5.0
     )
 
     await agent.start()
@@ -251,12 +235,9 @@ async def test_agent_decision_tracking(mock_memory):
         importance=IntelligenceImportance.CRITICAL,
         source="test",
         symbol="BTC",
-        data={
-            "current_price": 70000.0,
-            "price_change_percentage_24h": 12.0
-        },
+        data={"current_price": 70000.0, "price_change_percentage_24h": 12.0},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await agent.receive_intelligence(intelligence)
@@ -276,10 +257,7 @@ async def test_agent_decision_tracking(mock_memory):
 @pytest.mark.asyncio
 async def test_agent_baseline_reset(mock_memory):
     """Test agent baseline reset functionality."""
-    agent = PriceMonitorAgent(
-        agent_id="baseline_test_agent",
-        symbols=["BTC"]
-    )
+    agent = PriceMonitorAgent(agent_id="baseline_test_agent", symbols=["BTC"])
 
     await agent.start()
 
@@ -289,9 +267,7 @@ async def test_agent_baseline_reset(mock_memory):
     initial_baseline = baselines_before["BTC"]
 
     # Reset baseline
-    mock_memory['stm'].get_current_price = Mock(return_value={
-        "current_price": 70000.0
-    })
+    mock_memory["stm"].get_current_price = Mock(return_value={"current_price": 70000.0})
 
     await agent.reset_baseline("BTC")
 
@@ -308,17 +284,9 @@ async def test_agent_baseline_reset(mock_memory):
 async def test_multiple_agents_parallel_processing(mock_memory):
     """Test multiple agents processing intelligence in parallel."""
     # Create multiple agents
-    agent1 = PriceMonitorAgent(
-        agent_id="parallel_agent_1",
-        symbols=["BTC"],
-        alert_threshold=5.0
-    )
+    agent1 = PriceMonitorAgent(agent_id="parallel_agent_1", symbols=["BTC"], alert_threshold=5.0)
 
-    agent2 = PriceMonitorAgent(
-        agent_id="parallel_agent_2",
-        symbols=["ETH"],
-        alert_threshold=5.0
-    )
+    agent2 = PriceMonitorAgent(agent_id="parallel_agent_2", symbols=["ETH"], alert_threshold=5.0)
 
     # Start both agents
     await agent1.start()
@@ -333,7 +301,7 @@ async def test_multiple_agents_parallel_processing(mock_memory):
         symbol="BTC",
         data={"current_price": 63000.0, "price_change_percentage_24h": 1.0},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     eth_intel = IntelligenceMessage(
@@ -344,7 +312,7 @@ async def test_multiple_agents_parallel_processing(mock_memory):
         symbol="ETH",
         data={"current_price": 3200.0, "price_change_percentage_24h": 1.0},
         timestamp=datetime.utcnow(),
-        validated=True
+        validated=True,
     )
 
     await agent1.receive_intelligence(btc_intel)
@@ -365,13 +333,11 @@ async def test_multiple_agents_parallel_processing(mock_memory):
 @pytest.mark.asyncio
 async def test_agent_lifecycle_transitions(mock_memory):
     """Test agent lifecycle state transitions."""
-    agent = PriceMonitorAgent(
-        agent_id="lifecycle_test_agent",
-        symbols=["BTC"]
-    )
+    agent = PriceMonitorAgent(agent_id="lifecycle_test_agent", symbols=["BTC"])
 
     # Initial state
     from api.models.intelligence import AgentStatus
+
     assert agent.status == AgentStatus.INITIALIZING
 
     # Start -> Active

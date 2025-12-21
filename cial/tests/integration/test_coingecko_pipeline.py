@@ -3,12 +3,13 @@ Integration tests for CoinGecko → CIAL pipeline
 Tests the complete data flow: CoinGecko → Connector → Broker → Classification → STM → Agents
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock, Mock
 from fastapi.testclient import TestClient
 
+from api.models.intelligence import IntelligenceImportance, IntelligenceType
 from main import app
-from api.models.intelligence import IntelligenceType, IntelligenceImportance
 
 client = TestClient(app)
 
@@ -22,22 +23,22 @@ def mock_coingecko_api():
             "usd_24h_change": 2.5,
             "usd_24h_vol": 28500000000,
             "usd_market_cap": 1220000000000,
-            "last_updated_at": 1234567890
+            "last_updated_at": 1234567890,
         },
         "ethereum": {
             "usd": 3200.0,
             "usd_24h_change": 1.8,
             "usd_24h_vol": 15000000000,
             "usd_market_cap": 385000000000,
-            "last_updated_at": 1234567890
+            "last_updated_at": 1234567890,
         },
         "solana": {
             "usd": 145.0,
             "usd_24h_change": -0.5,
             "usd_24h_vol": 2500000000,
             "usd_market_cap": 65000000000,
-            "last_updated_at": 1234567890
-        }
+            "last_updated_at": 1234567890,
+        },
     }
 
 
@@ -64,14 +65,14 @@ async def test_complete_pipeline_live_price(mock_coingecko_api):
             "intelligence_types": ["price"],
             "symbols": ["BTC"],
             "min_importance": "normal",
-            "real_time": True
-        }
+            "real_time": True,
+        },
     }
     register_response = client.post("/api/v1/agents/register", json=agent_data)
     assert register_response.status_code == 200
 
     # Mock the CoinGecko API call
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -129,7 +130,7 @@ async def test_complete_pipeline_live_price(mock_coingecko_api):
 @pytest.mark.asyncio
 async def test_batch_price_fetch(mock_coingecko_api):
     """Test batch price fetching and caching"""
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -199,11 +200,11 @@ async def test_price_change_classification():
             "usd": 62500.0,
             "usd_24h_change": 15.0,  # Large change should trigger CRITICAL
             "usd_24h_vol": 28500000000,
-            "usd_market_cap": 1220000000000
+            "usd_market_cap": 1220000000000,
         }
     }
 
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -233,8 +234,8 @@ async def test_agent_filtering_by_symbol():
         "capabilities": {
             "intelligence_types": ["price"],
             "symbols": ["BTC"],
-            "min_importance": "normal"
-        }
+            "min_importance": "normal",
+        },
     }
     client.post("/api/v1/agents/register", json=btc_agent)
 
@@ -245,13 +246,13 @@ async def test_agent_filtering_by_symbol():
         "capabilities": {
             "intelligence_types": ["price"],
             "symbols": ["ETH"],
-            "min_importance": "normal"
-        }
+            "min_importance": "normal",
+        },
     }
     client.post("/api/v1/agents/register", json=eth_agent)
 
     # Fetch BTC price
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -260,7 +261,7 @@ async def test_agent_filtering_by_symbol():
                 "usd": 62500.0,
                 "usd_24h_change": 2.5,
                 "usd_24h_vol": 28500000000,
-                "usd_market_cap": 1220000000000
+                "usd_market_cap": 1220000000000,
             }
         }
         mock_response.raise_for_status = Mock()
@@ -285,7 +286,7 @@ async def test_agent_filtering_by_symbol():
 @pytest.mark.asyncio
 async def test_api_error_handling():
     """Test handling of CoinGecko API errors"""
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.get.side_effect = Exception("Network error")
         mock_client.__aenter__.return_value = mock_client
@@ -301,21 +302,20 @@ async def test_api_error_handling():
 @pytest.mark.asyncio
 async def test_rate_limiting():
     """Test that rate limiting is enforced"""
-    from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
     import time
+
+    from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
 
     connector = get_coingecko_connector()
 
     # Make two requests in quick succession
     start = time.time()
 
-    with patch('httpx.AsyncClient') as mock_client_class:
+    with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "bitcoin": {"usd": 62500.0, "usd_24h_change": 2.5}
-        }
+        mock_response.json.return_value = {"bitcoin": {"usd": 62500.0, "usd_24h_change": 2.5}}
         mock_response.raise_for_status = Mock()
 
         mock_client.get.return_value = mock_response
@@ -344,9 +344,9 @@ def test_intelligence_stream_includes_coingecko():
             "current_price": 62500.0,
             "price_change_percentage_24h": 2.5,
             "volume_24h": 28500000000,
-            "market_cap": 1220000000000
+            "market_cap": 1220000000000,
         },
-        "symbol": "BTC"
+        "symbol": "BTC",
     }
     client.post("/api/v1/intelligence/ingest", json=intel_data)
 
@@ -371,7 +371,7 @@ def test_stm_cache_stats_includes_prices():
         "intelligence_type": "price",
         "source": "coingecko",
         "data": {"current_price": 62500.0},
-        "symbol": "BTC"
+        "symbol": "BTC",
     }
     client.post("/api/v1/intelligence/ingest", json=intel_data)
 

@@ -3,13 +3,14 @@ Integration tests for Kafka Event Stream Pipeline
 Tests the complete data flow with Kafka message distribution
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
+import pytest
+from fastapi.testclient import TestClient
+
+from api.models.intelligence import IntelligenceImportance, IntelligenceType
 from main import app
-from api.models.intelligence import IntelligenceType, IntelligenceImportance
 
 client = TestClient(app)
 
@@ -17,8 +18,10 @@ client = TestClient(app)
 @pytest.fixture
 def mock_kafka():
     """Mock Kafka producer and admin"""
-    with patch('infrastructure.kafka_manager.KafkaProducer') as mock_producer, \
-         patch('infrastructure.kafka_manager.KafkaAdminClient') as mock_admin:
+    with (
+        patch("infrastructure.kafka_manager.KafkaProducer") as mock_producer,
+        patch("infrastructure.kafka_manager.KafkaAdminClient") as mock_admin,
+    ):
 
         mock_producer_instance = MagicMock()
         mock_admin_instance = MagicMock()
@@ -31,10 +34,10 @@ def mock_kafka():
         mock_producer_instance.send.return_value = mock_future
 
         yield {
-            'producer': mock_producer,
-            'producer_instance': mock_producer_instance,
-            'admin': mock_admin,
-            'admin_instance': mock_admin_instance
+            "producer": mock_producer,
+            "producer_instance": mock_producer_instance,
+            "admin": mock_admin,
+            "admin_instance": mock_admin_instance,
         }
 
 
@@ -49,19 +52,16 @@ def test_intelligence_published_to_kafka(mock_kafka):
     intel_data = {
         "intelligence_type": "price",
         "source": "test_source",
-        "data": {
-            "current_price": 62500.0,
-            "price_change_percentage_24h": 5.5
-        },
-        "symbol": "BTC"
+        "data": {"current_price": 62500.0, "price_change_percentage_24h": 5.5},
+        "symbol": "BTC",
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
     assert response.status_code == 200
 
     # Verify message was sent to Kafka
-    assert mock_kafka['producer_instance'].send.called
-    assert mock_kafka['producer_instance'].flush.called
+    assert mock_kafka["producer_instance"].send.called
+    assert mock_kafka["producer_instance"].flush.called
 
 
 @pytest.mark.integration
@@ -75,9 +75,9 @@ def test_critical_price_routed_to_multiple_topics(mock_kafka):
         "source": "coingecko",
         "data": {
             "current_price": 62500.0,
-            "price_change_percentage_24h": 10.0  # Large change -> CRITICAL
+            "price_change_percentage_24h": 10.0,  # Large change -> CRITICAL
         },
-        "symbol": "BTC"
+        "symbol": "BTC",
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
@@ -90,7 +90,7 @@ def test_critical_price_routed_to_multiple_topics(mock_kafka):
     # CRITICAL price should go to:
     # 1. intelligence.critical
     # 2. price.critical
-    assert mock_kafka['producer_instance'].send.call_count >= 2
+    assert mock_kafka["producer_instance"].send.call_count >= 2
 
 
 @pytest.mark.integration
@@ -103,9 +103,9 @@ def test_normal_intelligence_single_topic(mock_kafka):
         "source": "test",
         "data": {
             "current_price": 62500.0,
-            "price_change_percentage_24h": 0.5  # Small change -> NORMAL or LOW
+            "price_change_percentage_24h": 0.5,  # Small change -> NORMAL or LOW
         },
-        "symbol": "BTC"
+        "symbol": "BTC",
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
@@ -115,7 +115,7 @@ def test_normal_intelligence_single_topic(mock_kafka):
     assert data["importance"] in ["NORMAL", "LOW"]
 
     # Should only go to importance-based topic (not type-specific)
-    assert mock_kafka['producer_instance'].send.called
+    assert mock_kafka["producer_instance"].send.called
 
 
 @pytest.mark.integration
@@ -129,8 +129,8 @@ def test_agent_registration_returns_kafka_topics():
         "capabilities": {
             "intelligence_types": ["price", "sentiment"],
             "symbols": ["BTC"],
-            "min_importance": "normal"
-        }
+            "min_importance": "normal",
+        },
     }
 
     response = client.post("/api/v1/agents/register", json=agent_data)
@@ -165,9 +165,9 @@ def test_whale_intelligence_kafka_routing(mock_kafka):
         "data": {
             "amount_usd": 15000000,  # $15M -> CRITICAL
             "from_address": "0x123...",
-            "to_address": "0x456..."
+            "to_address": "0x456...",
         },
-        "symbol": "BTC"
+        "symbol": "BTC",
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
@@ -178,7 +178,7 @@ def test_whale_intelligence_kafka_routing(mock_kafka):
     assert data["type"] == "whale"
 
     # Should be routed to whale.massive topic
-    assert mock_kafka['producer_instance'].send.called
+    assert mock_kafka["producer_instance"].send.called
 
 
 @pytest.mark.integration
@@ -189,11 +189,7 @@ def test_sentiment_intelligence_kafka_routing(mock_kafka):
     intel_data = {
         "intelligence_type": "sentiment",
         "source": "news_api",
-        "data": {
-            "sentiment_score": 0.8,
-            "confidence": 0.9,
-            "headline": "Bitcoin adoption surges"
-        }
+        "data": {"sentiment_score": 0.8, "confidence": 0.9, "headline": "Bitcoin adoption surges"},
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
@@ -204,7 +200,7 @@ def test_sentiment_intelligence_kafka_routing(mock_kafka):
 
     # High confidence + strong sentiment -> CRITICAL -> sentiment.breaking
     if data["importance"] == "CRITICAL":
-        assert mock_kafka['producer_instance'].send.call_count >= 2
+        assert mock_kafka["producer_instance"].send.call_count >= 2
 
 
 @pytest.mark.integration
@@ -214,7 +210,7 @@ def test_kafka_topic_creation(mock_kafka):
     """
     # Topics should be created during app startup
     # Verify create_topics was called
-    assert mock_kafka['admin_instance'].create_topics.called
+    assert mock_kafka["admin_instance"].create_topics.called
 
 
 @pytest.mark.integration
@@ -227,17 +223,14 @@ def test_multiple_intelligence_kafka_ordering(mock_kafka):
         intel_data = {
             "intelligence_type": "price",
             "source": "test",
-            "data": {
-                "current_price": 62500.0 + i * 100,
-                "sequence": i
-            },
-            "symbol": "BTC"
+            "data": {"current_price": 62500.0 + i * 100, "sequence": i},
+            "symbol": "BTC",
         }
         response = client.post("/api/v1/intelligence/ingest", json=intel_data)
         assert response.status_code == 200
 
     # All messages should be sent to Kafka
-    assert mock_kafka['producer_instance'].send.call_count >= 5
+    assert mock_kafka["producer_instance"].send.call_count >= 5
 
 
 @pytest.mark.integration
@@ -246,13 +239,13 @@ def test_kafka_failure_doesnt_block_pipeline(mock_kafka):
     Test that Kafka failures don't block the intelligence pipeline
     """
     # Simulate Kafka failure
-    mock_kafka['producer_instance'].send.side_effect = Exception("Kafka error")
+    mock_kafka["producer_instance"].send.side_effect = Exception("Kafka error")
 
     intel_data = {
         "intelligence_type": "price",
         "source": "test",
         "data": {"current_price": 62500.0},
-        "symbol": "BTC"
+        "symbol": "BTC",
     }
 
     # Should still succeed even if Kafka fails
@@ -272,10 +265,7 @@ def test_regulatory_intelligence_always_critical(mock_kafka):
     intel_data = {
         "intelligence_type": "regulatory",
         "source": "regulatory_api",
-        "data": {
-            "title": "New crypto regulation announced",
-            "impact": "high"
-        }
+        "data": {"title": "New crypto regulation announced", "impact": "high"},
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
@@ -285,7 +275,7 @@ def test_regulatory_intelligence_always_critical(mock_kafka):
     assert data["importance"] == "CRITICAL"
 
     # Should go to regulatory.alerts topic
-    assert mock_kafka['producer_instance'].send.called
+    assert mock_kafka["producer_instance"].send.called
 
 
 @pytest.mark.integration
@@ -296,29 +286,21 @@ def test_kafka_message_serialization(mock_kafka):
     intel_data = {
         "intelligence_type": "price",
         "source": "test",
-        "data": {
-            "current_price": 62500.0,
-            "nested_object": {
-                "key": "value"
-            },
-            "array": [1, 2, 3]
-        },
+        "data": {"current_price": 62500.0, "nested_object": {"key": "value"}, "array": [1, 2, 3]},
         "symbol": "BTC",
-        "metadata": {
-            "custom_field": "custom_value"
-        }
+        "metadata": {"custom_field": "custom_value"},
     }
 
     response = client.post("/api/v1/intelligence/ingest", json=intel_data)
     assert response.status_code == 200
 
     # Verify send was called with proper arguments
-    assert mock_kafka['producer_instance'].send.called
+    assert mock_kafka["producer_instance"].send.called
 
     # Get the call arguments
-    call_args = mock_kafka['producer_instance'].send.call_args
+    call_args = mock_kafka["producer_instance"].send.call_args
 
     # Verify topic, key, and value were provided
-    assert 'topic' in call_args.kwargs
-    assert 'key' in call_args.kwargs
-    assert 'value' in call_args.kwargs
+    assert "topic" in call_args.kwargs
+    assert "key" in call_args.kwargs
+    assert "value" in call_args.kwargs
