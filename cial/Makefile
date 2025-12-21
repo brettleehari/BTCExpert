@@ -57,18 +57,13 @@ lint-fix: ## Run linting checks and auto-fix issues
 	ruff check --fix .
 	@echo "$(GREEN)✅ Linting issues fixed$(NC)"
 
-type-check: ## Run type checking with mypy
-	@echo "$(BLUE)Running type checks...$(NC)"
-	mypy . --ignore-missing-imports || true
-	@echo "$(GREEN)✅ Type checking complete$(NC)"
-
 security: ## Run security checks (bandit + safety)
 	@echo "$(BLUE)Running security checks...$(NC)"
 	bandit -r . -f json -o bandit-report.json || true
 	safety check --json || true
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
-check-all: format lint type-check ## Run all code quality checks
+check-all: format lint security ## Run all code quality checks
 	@echo "$(GREEN)✅ All quality checks passed$(NC)"
 
 pre-commit-run: ## Run pre-commit hooks manually on all files

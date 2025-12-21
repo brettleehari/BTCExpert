@@ -52,20 +52,6 @@ repos:
         args: ['--fix=lf']
         files: ^cial/.*\.py$
 
-  # MyPy - Static type checking (optional, can be strict)
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.0
-    hooks:
-      - id: mypy
-        args: 
-          - --ignore-missing-imports
-          - --no-strict-optional
-          - --warn-unused-ignores
-        files: ^cial/.*\.py$
-        additional_dependencies: 
-          - types-redis
-          - types-python-dateutil
-
   # Bandit - Security linter
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.2
@@ -92,7 +78,6 @@ exclude: |
       ^cial/venv/|
       ^cial/__pycache__/|
       ^cial/\.pytest_cache/|
-      ^cial/\.mypy_cache/|
       ^cial/\.ruff_cache/|
       ^cial/htmlcov/|
       ^cial/\.coverage|

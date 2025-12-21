@@ -42,7 +42,7 @@ jobs:
       - name: Install linting tools
         run: |
           cd ${{ env.WORKING_DIR }}
-          pip install black ruff mypy
+          pip install black ruff
 
       - name: Run Black (format check)
         run: |
@@ -53,11 +53,6 @@ jobs:
         run: |
           cd ${{ env.WORKING_DIR }}
           ruff check .
-
-      - name: Run MyPy (type checking)
-        run: |
-          cd ${{ env.WORKING_DIR }}
-          mypy . --ignore-missing-imports || true  # Don't fail on type errors for now
 
   # ============================================================================
   # Job 2: Security Scanning

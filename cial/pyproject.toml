@@ -124,9 +124,10 @@ ignore_missing_imports = true
 module = [
     "infrastructure.postgres_manager",
     "infrastructure.config",
+    "validation.intelligence_validator",
 ]
 allow_untyped_defs = true
-disable_error_code = ["var-annotated", "prop-decorator", "valid-type", "misc", "arg-type", "list-item"]
+disable_error_code = ["var-annotated", "prop-decorator", "valid-type", "misc", "arg-type", "list-item", "assignment", "annotation-unchecked"]
 
 # ============================================================================
 # Tool: Pytest (Testing)

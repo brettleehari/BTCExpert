@@ -35,25 +35,19 @@ Pre-commit is a framework that manages and maintains multi-language pre-commit h
 - **When**: Before every commit
 - **Auto-fix**: Yes, with --fix flag
 
-### 4. **MyPy** - Static Type Checker
-- **Purpose**: Validates Python type hints
-- **Config**: Ignores missing imports, warns on unused ignores
-- **When**: Before every commit
-- **Auto-fix**: No (requires manual fixes)
-
-### 5. **Bandit** - Security Linter
+### 4. **Bandit** - Security Linter
 - **Purpose**: Finds common security issues in Python code
 - **Config**: Uses pyproject.toml configuration
 - **When**: Before every commit
 - **Auto-fix**: No (requires manual fixes)
 
-### 6. **YAML Lint**
+### 5. **YAML Lint**
 - **Purpose**: Validates YAML file syntax
 - **Config**: Max line length 120
 - **When**: Before every commit
 - **Auto-fix**: No
 
-### 7. **General File Checks**
+### 6. **General File Checks**
 - Trailing whitespace removal
 - End-of-file fixer
 - YAML/JSON validation
