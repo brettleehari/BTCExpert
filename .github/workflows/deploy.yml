@@ -331,7 +331,7 @@ jobs:
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs: [build, deploy-railway, deploy-gcp, deploy-digitalocean, deploy-render]
+    needs: [build]
     if: always() && github.ref == 'refs/heads/main'
 
     steps:
@@ -343,9 +343,10 @@ jobs:
             exit 0
           fi
 
-          STATUS="${{ job.status }}"
+          STATUS="success"
           COLOR="good"
-          if [ "$STATUS" != "success" ]; then
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            STATUS="failed"
             COLOR="danger"
           fi
 

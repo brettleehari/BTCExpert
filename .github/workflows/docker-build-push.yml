@@ -110,11 +110,11 @@ except Exception as e:
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Trigger Render Deploy Hook
-        if: ${{ vars.RENDER_DEPLOY_HOOK_URL != '' || secrets.RENDER_DEPLOY_HOOK_URL != '' }}
         run: |
           HOOK_URL="${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
           if [ -n "$HOOK_URL" ]; then
             curl -X POST "$HOOK_URL"
+            echo "✅ Triggered Render deployment"
           else
             echo "⚠️  RENDER_DEPLOY_HOOK_URL not configured - skipping deployment trigger"
           fi
