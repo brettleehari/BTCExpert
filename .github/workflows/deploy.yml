@@ -52,7 +52,7 @@ jobs:
       - name: Run Ruff (linting)
         run: |
           cd ${{ env.WORKING_DIR }}
-          ruff check .
+          ruff check . --config=pyproject.toml
 
   # ============================================================================
   # Job 2: Security Scanning

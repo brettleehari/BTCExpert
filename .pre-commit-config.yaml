@@ -28,7 +28,6 @@ repos:
       - id: ruff
         args: 
           - --fix
-          - --exit-non-zero-on-fix
           - --config=cial/pyproject.toml
         files: ^cial/.*\.py$
 
