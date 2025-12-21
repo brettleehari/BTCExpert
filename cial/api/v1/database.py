@@ -5,7 +5,7 @@ Session 19: Database performance management and monitoring
 Endpoints for database optimization, statistics, and health.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Query
 
@@ -89,7 +89,7 @@ async def create_materialized_views() -> VersionedResponse[dict[str, Any]]:
 @router.post("/optimize/refresh-views")
 @trace_operation("db_refresh_materialized_views")
 async def refresh_materialized_views(
-    concurrent: bool = Query(True, description="Refresh concurrently (doesn't block reads)")
+    concurrent: bool = Query(True, description="Refresh concurrently (doesn't block reads)")  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Refresh materialized views with latest data.
@@ -124,7 +124,7 @@ async def refresh_materialized_views(
 @router.post("/optimize/vacuum")
 @trace_operation("db_vacuum_analyze")
 async def vacuum_analyze(
-    tables: list[str] | None = Query(
+    tables: list[str] | None = Query(  # noqa: B008
         None, description="Specific tables to vacuum (None = all tables)"
     )
 ) -> VersionedResponse[dict[str, str]]:
@@ -293,7 +293,7 @@ async def get_table_stats() -> VersionedResponse[list[dict[str, Any]]]:
 @router.get("/stats/queries")
 @trace_operation("db_query_stats")
 async def get_query_stats(
-    min_duration_ms: float = Query(0, description="Only show queries slower than this (ms)")
+    min_duration_ms: float = Query(0, description="Only show queries slower than this (ms)")  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Get query performance statistics.

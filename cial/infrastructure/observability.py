@@ -5,10 +5,9 @@ OpenTelemetry instrumentation, Prometheus metrics, and distributed tracing
 Version: 1.0 - Production Monitoring Stack
 """
 
-import time
-from datetime import datetime
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 # OpenTelemetry imports
 from opentelemetry import metrics, trace
@@ -18,13 +17,12 @@ from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 # Prometheus imports
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, Info, generate_latest
+from prometheus_client import Counter, Gauge, Histogram, Info, generate_latest
 
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
@@ -293,7 +291,7 @@ system_info.info(
 # ============================================================================
 
 
-def trace_operation(operation_name: str = None, attributes: dict[str, Any] = None):
+def trace_operation(operation_name: str = None, attributes: dict[str, Any] = None):  # noqa: C901
     """
     Decorator to add distributed tracing to a function.
 

@@ -3,9 +3,7 @@ CIAL Redis Manager
 Connection and management for Redis-based Short-Term Memory
 """
 
-import json
-from datetime import timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 import redis
 from redis.asyncio import Redis as AsyncRedis
@@ -109,8 +107,8 @@ class RedisManager:
             if self._sync_client:
                 self._sync_client.ping()
                 return True
-        except:
-            pass
+        except Exception:
+            pass  # nosec B110 - Silent check, returning False indicates disconnection
         return False
 
     def get_info(self) -> dict[str, Any]:

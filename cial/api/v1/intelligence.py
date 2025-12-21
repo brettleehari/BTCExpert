@@ -7,22 +7,16 @@ Version: 1.0 (with versioned responses)
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Path, Query, Request
 
 from api.models.intelligence import (
-    DataConnector,
-    IntelligenceImportance,
-    IntelligenceMessage,
     IntelligenceStreamResponse,
     IntelligenceType,
 )
 from api.models.responses import (
     APIVersion,
-    VersionedResponse,
-    error_response,
-    paginated_response,
     success_response,
 )
 from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
@@ -45,9 +39,9 @@ def _get_request_metadata(request: Request, start_time: float) -> dict[str, Any]
 
 @router.get("/stream/{stream_type}", response_model=IntelligenceStreamResponse)
 async def get_intelligence_stream(
-    stream_type: str = Path(..., description="Intelligence stream type"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum messages to return"),
-    symbol: str | None = Query(None, description="Filter by cryptocurrency symbol"),
+    stream_type: str = Path(..., description="Intelligence stream type"),  # noqa: B008
+    limit: int = Query(default=100, ge=1, le=1000, description="Maximum messages to return"),  # noqa: B008
+    symbol: str | None = Query(None, description="Filter by cryptocurrency symbol"),  # noqa: B008
 ):
     """
     Get intelligence stream data.
@@ -88,7 +82,7 @@ async def get_intelligence_stream(
 
 @router.get("/price/{symbol}/current")
 async def get_current_price(
-    request: Request, symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")
+    request: Request, symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")  # noqa: B008
 ):
     """
     Get current price intelligence for a cryptocurrency.
@@ -139,7 +133,7 @@ async def get_current_price(
 
 @router.get("/price/{symbol}/live")
 async def get_live_price(
-    symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")
+    symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")  # noqa: B008
 ):
     """
     Fetch live price from CoinGecko and ingest into CIAL pipeline.
@@ -185,7 +179,7 @@ async def get_live_price(
 @router.post("/price/batch")
 async def get_batch_prices(
     request: Request,
-    symbols: list[str] = Body(
+    symbols: list[str] = Body(  # noqa: B008
         ..., description="List of cryptocurrency symbols", example=["BTC", "ETH", "SOL"]
     ),
 ):
@@ -245,7 +239,7 @@ async def get_batch_prices(
 
 
 @router.get("/sentiment/{symbol}/current")
-async def get_current_sentiment(symbol: str = Path(..., description="Cryptocurrency symbol")):
+async def get_current_sentiment(symbol: str = Path(..., description="Cryptocurrency symbol")):  # noqa: B008
     """
     Get current sentiment intelligence for a cryptocurrency.
 
@@ -270,11 +264,11 @@ async def get_current_sentiment(symbol: str = Path(..., description="Cryptocurre
 
 @router.post("/ingest")
 async def ingest_intelligence(
-    intelligence_type: IntelligenceType = Body(..., description="Type of intelligence"),
-    source: str = Body(..., description="Data source identifier"),
-    data: dict[str, Any] = Body(..., description="Intelligence data payload"),
-    symbol: str | None = Body(None, description="Cryptocurrency symbol"),
-    metadata: dict[str, Any] | None = Body(None, description="Additional metadata"),
+    intelligence_type: IntelligenceType = Body(..., description="Type of intelligence"),  # noqa: B008
+    source: str = Body(..., description="Data source identifier"),  # noqa: B008
+    data: dict[str, Any] = Body(..., description="Intelligence data payload"),  # noqa: B008
+    symbol: str | None = Body(None, description="Cryptocurrency symbol"),  # noqa: B008
+    metadata: dict[str, Any] | None = Body(None, description="Additional metadata"),  # noqa: B008
 ):
     """
     Ingest raw intelligence data into CIAL pipeline.
@@ -348,10 +342,10 @@ async def get_intelligence_stats(request: Request):
 @router.get("/connectors")
 async def list_connectors(
     request: Request,
-    intelligence_type: IntelligenceType | None = Query(
+    intelligence_type: IntelligenceType | None = Query(  # noqa: B008
         None, description="Filter by intelligence type"
     ),
-    enabled_only: bool = Query(True, description="Only show enabled connectors"),
+    enabled_only: bool = Query(True, description="Only show enabled connectors"),  # noqa: B008
 ):
     """
     List all registered data connectors.

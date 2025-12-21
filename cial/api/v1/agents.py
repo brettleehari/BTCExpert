@@ -3,8 +3,6 @@ CIAL Agents API Router
 Endpoints for agent registration and management
 """
 
-from typing import List
-
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from api.models.intelligence import (
@@ -17,7 +15,6 @@ from api.models.intelligence import (
     AgentType,
 )
 from core.agent_registry import get_agent_registry
-from core.service_registry import get_service_registry
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 
@@ -25,7 +22,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=AgentRegistrationResponse)
-async def register_agent(agent: AgentRegistration = Body(...)):
+async def register_agent(agent: AgentRegistration = Body(...)):  # noqa: B008
     """
     Register a new agent with CIAL.
 
@@ -42,7 +39,7 @@ async def register_agent(agent: AgentRegistration = Body(...)):
     """
     try:
         registry = get_agent_registry()
-        registered_agent = registry.register_agent(agent)
+        registry.register_agent(agent)
 
         # Generate WebSocket URL for real-time intelligence
         websocket_url = f"ws://{settings.HOST}:{settings.PORT}/ws/intelligence/{agent.agent_id}"
@@ -88,7 +85,7 @@ async def get_agent_status(agent_id: str):
 
 
 @router.put("/{agent_id}/status")
-async def update_agent_status(agent_id: str, status_update: AgentStatusUpdate = Body(...)):
+async def update_agent_status(agent_id: str, status_update: AgentStatusUpdate = Body(...)):  # noqa: B008
     """
     Update agent status.
 
@@ -138,9 +135,9 @@ async def unregister_agent(agent_id: str):
 
 @router.get("/", response_model=AgentListResponse)
 async def list_agents(
-    agent_type: AgentType = Query(None, description="Filter by agent type"),
-    status: AgentStatus = Query(None, description="Filter by status"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of agents to return"),
+    agent_type: AgentType = Query(None, description="Filter by agent type"),  # noqa: B008
+    status: AgentStatus = Query(None, description="Filter by status"),  # noqa: B008
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of agents to return"),  # noqa: B008
 ):
     """
     List all registered agents with optional filtering.

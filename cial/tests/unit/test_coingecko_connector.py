@@ -2,7 +2,6 @@
 Unit tests for CoinGecko Connector
 """
 
-from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
@@ -249,7 +248,6 @@ def test_symbol_to_id_mapping(connector):
 @pytest.mark.asyncio
 async def test_rate_limiting(connector):
     """Test rate limiting mechanism"""
-    import asyncio
     import time
 
     # First request should not wait

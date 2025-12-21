@@ -7,11 +7,12 @@ Performance: 20-50% faster validation
 """
 
 from functools import lru_cache
-from typing import List, Optional
 from urllib.parse import urlparse
 
 from pydantic import Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from infrastructure.logging_config import logger
 
 
 class Settings(BaseSettings):
@@ -32,7 +33,7 @@ class Settings(BaseSettings):
     API_VERSION: str = "1.0.0"
     ENVIRONMENT: str = Field(default="development", validation_alias="ENVIRONMENT")
     DEBUG: bool = Field(default=True, validation_alias="DEBUG")
-    HOST: str = Field(default="0.0.0.0", validation_alias="HOST")
+    HOST: str = Field(default="0.0.0.0", validation_alias="HOST")  # nosec B104 - Binding to all interfaces is intentional for containerized deployment
     PORT: int = Field(default=8000, validation_alias="PORT", ge=1, le=65535)
     LOG_LEVEL: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
@@ -68,7 +69,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = Field(default="cial_password", validation_alias="POSTGRES_PASSWORD")
 
     @model_validator(mode="after")
-    def parse_connection_urls(self) -> "Settings":
+    def parse_connection_urls(self) -> "Settings":  # noqa: C901
         """
         Parse REDIS_URL and DATABASE_URL if provided.
 
@@ -92,6 +93,7 @@ class Settings(BaseSettings):
                         self.REDIS_DB = int(db_str)
             except Exception as e:
                 # If parsing fails, keep defaults
+                logger.warning(f"Failed to parse REDIS_URL: {e}")
                 pass
 
         # Parse DATABASE_URL if provided
@@ -111,6 +113,7 @@ class Settings(BaseSettings):
                     self.POSTGRES_DB = parsed.path.lstrip("/")
             except Exception as e:
                 # If parsing fails, keep defaults
+                logger.warning(f"Failed to parse DATABASE_URL: {e}")
                 pass
 
         return self

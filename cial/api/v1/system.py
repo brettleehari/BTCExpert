@@ -7,7 +7,6 @@ Version: 1.0 - Production Monitoring
 
 import time
 from datetime import datetime
-from typing import Any, Dict
 
 from fastapi import APIRouter, Request
 
@@ -128,7 +127,7 @@ async def get_resilience_metrics(request: Request):
 
         # Count circuit breaker states
         cb_states = {"closed": 0, "open": 0, "half_open": 0}
-        for cb_name, cb_data in resilience_data.get("circuit_breakers", {}).items():
+        for _cb_name, cb_data in resilience_data.get("circuit_breakers", {}).items():
             state = cb_data.get("state", "").lower()
             if "closed" in state:
                 cb_states["closed"] += 1
@@ -141,7 +140,7 @@ async def get_resilience_metrics(request: Request):
 
         # Count healthy vs unhealthy services
         health_status = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0}
-        for health_name, health_data in resilience_data.get("health_checks", {}).items():
+        for _health_name, health_data in resilience_data.get("health_checks", {}).items():
             status = health_data.get("status", "unknown").lower()
             health_status[status] = health_status.get(status, 0) + 1
 

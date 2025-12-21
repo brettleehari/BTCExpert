@@ -6,9 +6,9 @@ WebSocket endpoints for real-time intelligence delivery.
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from api.models.responses import VersionedResponse, error_response, success_response
 from infrastructure.logging_config import logger

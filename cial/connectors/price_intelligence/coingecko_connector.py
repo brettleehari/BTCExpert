@@ -8,7 +8,6 @@ Version: 2.0 - Production Ready with Resilience Patterns
 import asyncio
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -17,7 +16,7 @@ from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
-from infrastructure.observability import record_connector_request, trace_operation
+from infrastructure.observability import record_connector_request
 from infrastructure.resilience import (
     circuit_breaker,
     get_bulkhead,
@@ -246,7 +245,7 @@ class CoinGeckoConnector:
             data = response.json()
 
             results = {}
-            for symbol, coin_id in zip(symbols, coin_ids):
+            for symbol, coin_id in zip(symbols, coin_ids, strict=False):
                 if coin_id in data:
                     coin_data = data[coin_id]
                     results[symbol.upper()] = PriceIntelligence(

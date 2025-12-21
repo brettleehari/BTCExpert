@@ -13,11 +13,8 @@ Features:
 
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import asyncpg
-
-from infrastructure.config import settings
 from infrastructure.logging_config import logger
 from infrastructure.observability import metrics, trace_operation
 
@@ -453,7 +450,7 @@ class DatabaseOptimizer:
         """
         slow_queries = []
 
-        for query_hash, stats in self.query_stats.items():
+        for _query_hash, stats in self.query_stats.items():
             if stats["avg_time_ms"] >= min_duration_ms:
                 slow_queries.append(stats)
 

@@ -3,13 +3,11 @@ Integration tests for Kafka Event Stream Pipeline
 Tests the complete data flow with Kafka message distribution
 """
 
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from api.models.intelligence import IntelligenceImportance, IntelligenceType
 from main import app
 
 client = TestClient(app)

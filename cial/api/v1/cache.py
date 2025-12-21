@@ -6,12 +6,12 @@ Endpoints for cache monitoring, warming, and invalidation.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from api.models.responses import VersionedResponse, error_response, success_response
-from infrastructure.caching import cache_key_builder, get_cache_manager
+from infrastructure.caching import get_cache_manager
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
 
@@ -51,7 +51,7 @@ async def get_cache_stats() -> VersionedResponse[dict[str, Any]]:
 @router.post("/warm")
 @trace_operation("cache_warm")
 async def warm_cache(
-    symbols: list[str] | None = Query(
+    symbols: list[str] | None = Query(  # noqa: B008
         None, description="Specific symbols to warm (uses popular symbols if not provided)"
     )
 ) -> VersionedResponse[dict[str, Any]]:
@@ -95,7 +95,7 @@ async def warm_cache(
 @trace_operation("cache_invalidate_key")
 async def invalidate_cache_key(
     key: str,
-    cache_tier: str = Query(
+    cache_tier: str = Query(  # noqa: B008
         "both", description="Cache tier to invalidate: 'memory', 'redis', or 'both'"
     ),
 ) -> VersionedResponse[dict[str, Any]]:
@@ -181,7 +181,7 @@ async def invalidate_cache_pattern(pattern: str) -> VersionedResponse[dict[str, 
 @trace_operation("cache_get_api")
 async def get_cache_value(
     key: str,
-    cache_tier: str = Query(
+    cache_tier: str = Query(  # noqa: B008
         "both", description="Cache tier to query: 'memory', 'redis', or 'both'"
     ),
 ) -> VersionedResponse[dict[str, Any]]:
@@ -227,10 +227,10 @@ async def get_cache_value(
 @router.post("/set")
 @trace_operation("cache_set_api")
 async def set_cache_value(
-    key: str = Query(..., description="Cache key"),
-    value: Any = Query(..., description="Value to cache"),
-    ttl: int | None = Query(None, description="Time-to-live in seconds"),
-    cache_tier: str = Query("both", description="Cache tier: 'memory', 'redis', or 'both'"),
+    key: str = Query(..., description="Cache key"),  # noqa: B008
+    value: Any = Query(..., description="Value to cache"),  # noqa: B008
+    ttl: int | None = Query(None, description="Time-to-live in seconds"),  # noqa: B008
+    cache_tier: str = Query("both", description="Cache tier: 'memory', 'redis', or 'both'"),  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Set value in cache (for testing/development).

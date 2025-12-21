@@ -4,8 +4,8 @@ Redis-based real-time intelligence cache with TTL-based lifecycle
 """
 
 import json
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
 from infrastructure.config import settings

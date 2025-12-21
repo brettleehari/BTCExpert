@@ -3,7 +3,7 @@ Unit tests for Kafka Manager
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

@@ -3,8 +3,6 @@ CIAL Validation API Router
 Endpoints for intelligence validation and confidence scoring
 """
 
-from typing import Any, Dict, Optional
-
 from fastapi import APIRouter, Body, HTTPException
 
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
@@ -16,7 +14,7 @@ router = APIRouter()
 
 
 @router.post("/validate")
-async def validate_intelligence(message: IntelligenceMessage = Body(...)):
+async def validate_intelligence(message: IntelligenceMessage = Body(...)):  # noqa: B008
     """
     Validate an intelligence message using all validation rules.
 

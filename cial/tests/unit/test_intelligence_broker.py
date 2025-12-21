@@ -12,7 +12,6 @@ from api.models.intelligence import (
     IntelligenceImportance,
     IntelligenceType,
 )
-from core.agent_registry import AgentRegistry
 from core.intelligence_broker import IntelligenceBroker
 
 
@@ -116,7 +115,7 @@ def test_classify_whale_importance(broker):
 
 def test_routing_to_agents(broker_with_agent):
     """Test intelligence routing to interested agents"""
-    message = broker_with_agent.process_intelligence(
+    broker_with_agent.process_intelligence(
         intelligence_type=IntelligenceType.PRICE,
         source="coingecko",
         data={"current_price": 62500.0},
@@ -181,7 +180,7 @@ def test_filter_intelligence_by_type(broker):
 def test_broker_stats(broker_with_agent):
     """Test broker statistics"""
     # Process some messages
-    for i in range(3):
+    for _i in range(3):
         broker_with_agent.process_intelligence(
             intelligence_type=IntelligenceType.PRICE,
             source="test",

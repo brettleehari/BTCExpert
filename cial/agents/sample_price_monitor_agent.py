@@ -3,9 +3,6 @@ Sample Price Monitor Agent
 Demonstrates BaseAgent implementation for price monitoring and alerting
 """
 
-from datetime import datetime
-from typing import Optional
-
 from agents.base_agent import AgentDecision, AgentDecisionType, BaseAgent
 from api.models.intelligence import (
     AgentCapabilities,

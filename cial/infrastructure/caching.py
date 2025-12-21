@@ -12,12 +12,10 @@ Features:
 """
 
 import asyncio
-import hashlib
-import json
 import time
-from datetime import datetime, timedelta
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any
 
 from aiocache import Cache, caches
 from aiocache.plugins import BasePlugin
@@ -316,9 +314,7 @@ class CacheManager:
 
         # Import here to avoid circular dependency
         from connectors.price_intelligence.coingecko_connector import CoinGeckoConnector
-        from infrastructure.container import get_container
 
-        container = get_container()
         connector = CoinGeckoConnector()
 
         warmed = 0

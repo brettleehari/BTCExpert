@@ -5,10 +5,9 @@ Session 20: JWT authentication and API key management
 Endpoints for token generation, API key creation, and security management.
 """
 
-from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from api.models.responses import VersionedResponse, error_response, success_response
@@ -18,7 +17,6 @@ from infrastructure.rate_limiter import RateLimits, limiter
 from infrastructure.security import (
     APIKey,
     APIKeyType,
-    SecurityManager,
     TokenData,
     get_current_user,
     get_security_manager,
@@ -101,7 +99,7 @@ async def create_token(request: TokenRequest) -> VersionedResponse[dict[str, str
 @router.get("/verify")
 @trace_operation("auth_verify_token")
 async def verify_token(
-    user: TokenData = Depends(get_current_user),
+    user: TokenData = Depends(get_current_user),  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Verify JWT token and return decoded data.
@@ -196,7 +194,7 @@ async def create_api_key(request: APIKeyRequest) -> VersionedResponse[dict[str, 
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_list_api_keys")
 async def list_api_keys(
-    include_inactive: bool = Query(False, description="Include revoked keys")
+    include_inactive: bool = Query(False, description="Include revoked keys")  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     List all API keys (without the actual key values).
@@ -231,7 +229,7 @@ async def list_api_keys(
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_revoke_api_key")
 async def revoke_api_key(
-    api_key: str = Query(..., description="API key to revoke")
+    api_key: str = Query(..., description="API key to revoke")  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Revoke an API key.
@@ -270,7 +268,7 @@ async def revoke_api_key(
 @router.get("/api-key/validate")
 @trace_operation("auth_validate_api_key")
 async def validate_api_key_endpoint(
-    api_key_obj: APIKey = Depends(verify_api_key),
+    api_key_obj: APIKey = Depends(verify_api_key),  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Validate an API key and return its details.

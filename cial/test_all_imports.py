@@ -13,10 +13,8 @@ Run this before every deployment to catch issues early.
 """
 
 import importlib
-import pkgutil
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
 def discover_modules(package_path: Path) -> list[str]:

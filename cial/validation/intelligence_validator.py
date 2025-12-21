@@ -3,9 +3,9 @@ CIAL Intelligence Validation Service
 Cross-source validation and confidence scoring for intelligence messages
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
 from infrastructure.logging_config import logger

@@ -4,11 +4,9 @@ Service for agent registration, discovery, and lifecycle management
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from api.models.intelligence import (
     Agent,
-    AgentCapabilities,
     AgentRegistration,
     AgentStatus,
     AgentType,

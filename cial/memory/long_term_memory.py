@@ -4,7 +4,7 @@ PostgreSQL-based persistent intelligence storage with analytics
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from api.models.intelligence import IntelligenceMessage
 from infrastructure.logging_config import logger

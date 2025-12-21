@@ -29,7 +29,7 @@ repos:
         args: 
           - --fix
           - --exit-non-zero-on-fix
-          - --select=B904,F541,UP006,UP045,E,F,W,C90,I,N,UP,B,A
+          - --config=cial/pyproject.toml
         files: ^cial/.*\.py$
 
   # General file checks

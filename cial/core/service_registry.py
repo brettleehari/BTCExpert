@@ -4,7 +4,6 @@ Registry for data connectors and external service management
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from api.models.intelligence import DataConnector, DataConnectorHealth, IntelligenceType
 from infrastructure.logging_config import logger

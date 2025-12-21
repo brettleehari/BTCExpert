@@ -9,11 +9,10 @@ import asyncio
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
 from api.models.intelligence import (
-    Agent,
     DataConnector,
     IntelligenceImportance,
     IntelligenceMessage,
@@ -23,7 +22,6 @@ from core.agent_registry import get_agent_registry
 from infrastructure.kafka_manager import get_kafka_manager
 from infrastructure.logging_config import log_intelligence_event, logger
 from infrastructure.observability import (
-    intelligence_routing_total,
     record_intelligence_message,
     trace_operation,
 )
@@ -205,7 +203,7 @@ class IntelligenceBroker:
 
         return message
 
-    def _classify_importance(self, message: IntelligenceMessage) -> IntelligenceMessage:
+    def _classify_importance(self, message: IntelligenceMessage) -> IntelligenceMessage:  # noqa: C901
         """
         Classify intelligence importance based on type and data.
 

@@ -4,12 +4,10 @@ Endpoints for agent memory management (STM & LTM)
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Path
 
-from api.models.intelligence import IntelligenceType
-from infrastructure.logging_config import logger
 from memory.long_term_memory import get_long_term_memory
 from memory.short_term_memory import get_short_term_memory
 
@@ -17,7 +15,7 @@ router = APIRouter()
 
 
 @router.get("/stm/{agent_id}/context")
-async def get_agent_context(agent_id: str = Path(..., description="Agent identifier")):
+async def get_agent_context(agent_id: str = Path(..., description="Agent identifier")):  # noqa: B008
     """
     Get agent's short-term memory context.
 
@@ -35,9 +33,9 @@ async def get_agent_context(agent_id: str = Path(..., description="Agent identif
 
 @router.post("/stm/{agent_id}/context")
 async def store_agent_context(
-    agent_id: str = Path(..., description="Agent identifier"),
-    context: dict[str, Any] = Body(..., description="Context data to store"),
-    ttl: int | None = Body(86400, description="Time-to-live in seconds"),
+    agent_id: str = Path(..., description="Agent identifier"),  # noqa: B008
+    context: dict[str, Any] = Body(..., description="Context data to store"),  # noqa: B008
+    ttl: int | None = Body(86400, description="Time-to-live in seconds"),  # noqa: B008
 ):
     """
     Store agent's working context in short-term memory.
@@ -66,9 +64,9 @@ async def store_agent_context(
 
 @router.post("/stm/{agent_id}/decision")
 async def store_agent_decision(
-    agent_id: str = Path(..., description="Agent identifier"),
-    decision: dict[str, Any] = Body(..., description="Decision data"),
-    ttl: int | None = Body(86400, description="Time-to-live in seconds"),
+    agent_id: str = Path(..., description="Agent identifier"),  # noqa: B008
+    decision: dict[str, Any] = Body(..., description="Decision data"),  # noqa: B008
+    ttl: int | None = Body(86400, description="Time-to-live in seconds"),  # noqa: B008
 ):
     """
     Store agent decision in short-term memory.
@@ -97,7 +95,7 @@ async def store_agent_decision(
 
 @router.get("/stm/{agent_id}/decisions")
 async def get_agent_decisions(
-    agent_id: str = Path(..., description="Agent identifier"), limit: int = 10
+    agent_id: str = Path(..., description="Agent identifier"), limit: int = 10  # noqa: B008
 ):
     """
     Get agent's recent decisions from short-term memory.
@@ -116,7 +114,7 @@ async def get_agent_decisions(
 
 
 @router.get("/stm/{agent_id}/market-state")
-async def get_market_state(agent_id: str = Path(..., description="Agent identifier")):
+async def get_market_state(agent_id: str = Path(..., description="Agent identifier")):  # noqa: B008
     """
     Get current market state for decision making.
 
@@ -133,7 +131,7 @@ async def get_market_state(agent_id: str = Path(..., description="Agent identifi
 
 
 @router.delete("/stm/{agent_id}")
-async def clear_agent_memory(agent_id: str = Path(..., description="Agent identifier")):
+async def clear_agent_memory(agent_id: str = Path(..., description="Agent identifier")):  # noqa: B008
     """
     Clear all short-term memory data for an agent.
 
@@ -153,7 +151,7 @@ async def clear_agent_memory(agent_id: str = Path(..., description="Agent identi
 
 
 @router.get("/stm/price/{symbol}")
-async def get_cached_price(symbol: str = Path(..., description="Cryptocurrency symbol")):
+async def get_cached_price(symbol: str = Path(..., description="Cryptocurrency symbol")):  # noqa: B008
     """
     Get current cached price for a symbol from STM.
 

@@ -15,7 +15,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -342,14 +342,14 @@ def get_security_manager() -> SecurityManager:
 
 # FastAPI dependencies
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),  # noqa: B008
 ) -> TokenData | None:
     """
     Dependency to get current authenticated user from JWT token.
 
     Usage:
         @app.get("/protected")
-        async def protected_route(user: TokenData = Depends(get_current_user)):
+        async def protected_route(user: TokenData = Depends(get_current_user)):  # noqa: B008
             ...
     """
     if not credentials:
@@ -364,7 +364,7 @@ async def get_current_user(
 
 
 async def verify_api_key(
-    request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme)
+    request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme)  # noqa: B008
 ) -> APIKey | None:
     """
     Dependency to verify API key from Authorization header.
@@ -375,7 +375,7 @@ async def verify_api_key(
 
     Usage:
         @app.get("/api-protected")
-        async def api_route(api_key: APIKey = Depends(verify_api_key)):
+        async def api_route(api_key: APIKey = Depends(verify_api_key)):  # noqa: B008
             ...
     """
     security_manager = get_security_manager()
@@ -406,11 +406,11 @@ def require_scope(required_scope: str):
 
     Usage:
         @app.delete("/admin")
-        async def admin_route(user: TokenData = Depends(require_scope("admin"))):
+        async def admin_route(user: TokenData = Depends(require_scope("admin"))):  # noqa: B008
             ...
     """
 
-    async def scope_checker(user: TokenData = Depends(get_current_user)):
+    async def scope_checker(user: TokenData = Depends(get_current_user)):  # noqa: B008
         if required_scope not in user.scopes:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -5,12 +5,11 @@ Long-Term Memory persistence with vector search capabilities
 Version: 2.0 - Production Ready with Resilience Patterns
 """
 
-import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import asyncpg
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -507,7 +506,7 @@ class PostgresManager:
                     WHERE {where_clause}
                     ORDER BY timestamp DESC
                     LIMIT ${param_count}
-                """
+                """  # nosec B608 - where_clause built from parameterized conditions, limit is parameterized
                 params.append(limit)
 
                 async with self._pool.acquire() as conn:
@@ -712,7 +711,7 @@ class PostgresManager:
                     GROUP BY bucket, type, symbol
                     ORDER BY bucket DESC
                     LIMIT {limit_param}
-                """
+                """  # nosec B608 - All parameters are properly escaped and parameterized
                 params.extend([interval, limit])
 
                 async with self._pool.acquire() as conn:
@@ -777,7 +776,7 @@ class PostgresManager:
                     FROM intelligence_hourly_stats
                     WHERE {where_clause}
                     ORDER BY hour DESC
-                """
+                """  # nosec B608 - All parameters are properly parameterized
 
                 async with self._pool.acquire() as conn:
                     rows = await conn.fetch(query, *params)
@@ -830,7 +829,7 @@ class PostgresManager:
                     FROM intelligence_daily_stats
                     WHERE {where_clause}
                     ORDER BY day DESC
-                """
+                """  # nosec B608 - All parameters are properly parameterized
 
                 async with self._pool.acquire() as conn:
                     rows = await conn.fetch(query, *params)

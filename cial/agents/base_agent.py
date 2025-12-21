@@ -8,7 +8,7 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from api.models.intelligence import (
     AgentCapabilities,
@@ -16,7 +16,6 @@ from api.models.intelligence import (
     AgentType,
     IntelligenceImportance,
     IntelligenceMessage,
-    IntelligenceType,
 )
 from infrastructure.logging_config import logger
 from memory.long_term_memory import get_long_term_memory
@@ -243,7 +242,7 @@ class BaseAgent(ABC):
                     # Process the intelligence
                     await self._process_intelligence(message)
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # No intelligence in queue, continue
                     continue
                 except Exception as e:
@@ -368,19 +367,19 @@ class BaseAgent(ABC):
 
     # Lifecycle Hooks (optional overrides)
 
-    async def on_start(self):
+    async def on_start(self):  # noqa: B027
         """Called when agent starts. Override for custom initialization."""
         pass
 
-    async def on_stop(self):
+    async def on_stop(self):  # noqa: B027
         """Called when agent stops. Override for custom cleanup."""
         pass
 
-    async def on_pause(self):
+    async def on_pause(self):  # noqa: B027
         """Called when agent pauses. Override for custom pause logic."""
         pass
 
-    async def on_resume(self):
+    async def on_resume(self):  # noqa: B027
         """Called when agent resumes. Override for custom resume logic."""
         pass
 

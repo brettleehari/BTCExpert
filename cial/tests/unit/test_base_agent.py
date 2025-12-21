@@ -4,7 +4,7 @@ Unit tests for Base Agent
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 

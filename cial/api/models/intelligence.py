@@ -7,7 +7,7 @@ Version: 2.0 - Migrated to Pydantic V2
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

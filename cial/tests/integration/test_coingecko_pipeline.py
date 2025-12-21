@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api.models.intelligence import IntelligenceImportance, IntelligenceType
+from api.models.intelligence import IntelligenceType
 from main import app
 
 client = TestClient(app)

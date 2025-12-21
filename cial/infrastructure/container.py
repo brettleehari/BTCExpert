@@ -5,8 +5,6 @@ Centralized dependency management with lifecycle control
 Version: 1.0 - Production-Ready DI Container
 """
 
-from typing import Optional
-
 from dependency_injector import containers, providers
 
 from infrastructure.config import settings
