@@ -4,7 +4,7 @@
 # ============================================================================
 # Stage 1: Builder - Install dependencies
 # ============================================================================
-FROM python:3.11.6-slim-bookworm AS builder
+FROM python:3.14.2-slim-bookworm AS builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -32,7 +32,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 # ============================================================================
 # Stage 2: Runtime - Minimal production image
 # ============================================================================
-FROM python:3.11.6-slim-bookworm AS runtime
+FROM python:3.14.2-slim-bookworm AS runtime
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

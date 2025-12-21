@@ -1,7 +1,7 @@
 # CIAL Development Dockerfile
 # Optimized for development with hot-reload
 
-FROM python:3.11.6-slim-bookworm
+FROM python:3.14.2-slim-bookworm
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
