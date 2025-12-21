@@ -14,12 +14,13 @@ Version: 1.0 - Production Ready
 """
 
 import asyncio
+import builtins
 import logging
-import time
-from datetime import datetime, timedelta
+from collections.abc import Awaitable, Callable, Coroutine
+from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 import pybreaker
 from tenacity import (
@@ -237,7 +238,7 @@ def retry_with_backoff(
 # ============================================================================
 
 
-class TimeoutError(Exception):
+class OperationTimeoutError(Exception):
     """Raised when operation times out"""
 
     pass
@@ -255,7 +256,7 @@ def timeout(seconds: float):
         async def fetch_data():
             return await slow_api.get_data()
 
-        # Raises TimeoutError if takes > 5 seconds
+        # Raises OperationTimeoutError if takes > 5 seconds
 
     Benefits:
         - Prevents hanging requests that consume resources
@@ -263,14 +264,14 @@ def timeout(seconds: float):
         - Critical for maintaining system responsiveness
     """
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Coroutine[Any, Any, T]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
-            except asyncio.TimeoutError as e:
+            except builtins.TimeoutError as e:
                 logger.error(f"Function timeout: {func.__name__}", timeout_seconds=seconds)
-                raise TimeoutError(f"{func.__name__} timed out after {seconds}s") from e
+                raise OperationTimeoutError(f"{func.__name__} timed out after {seconds}s") from e
 
         return wrapper
 
@@ -339,14 +340,16 @@ class Bulkhead:
                 active=self._active_count,
                 max=self.max_concurrent,
             )
-        except asyncio.TimeoutError:
+        except builtins.TimeoutError:
             self._rejected_requests += 1
             logger.error(
                 f"Bulkhead timeout: {self.name}",
                 active=self._active_count,
                 rejected=self._rejected_requests,
             )
-            raise TimeoutError(f"Bulkhead {self.name} timeout - too many concurrent operations") from None
+            raise OperationTimeoutError(
+                f"Bulkhead {self.name} timeout - too many concurrent operations"
+            ) from None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release slot"""

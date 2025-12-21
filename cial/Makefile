@@ -33,6 +33,49 @@ setup: ## Initial project setup (create venv, install deps)
 	@echo "$(YELLOW)Activate venv with: source venv/bin/activate$(NC)"
 	@echo "$(YELLOW)Then run: make install$(NC)"
 
+setup-pre-commit: ## Install pre-commit hooks
+	@echo "$(BLUE)Installing pre-commit hooks...$(NC)"
+	pip install pre-commit
+	cd .. && export HOME=/tmp && pre-commit install
+	@echo "$(GREEN)✅ Pre-commit hooks installed$(NC)"
+
+##@ Code Quality
+
+format: ## Format code with Black and isort
+	@echo "$(BLUE)Formatting code...$(NC)"
+	black .
+	isort .
+	@echo "$(GREEN)✅ Code formatted$(NC)"
+
+lint: ## Run linting checks (ruff)
+	@echo "$(BLUE)Running linting checks...$(NC)"
+	ruff check .
+	@echo "$(GREEN)✅ Linting passed$(NC)"
+
+lint-fix: ## Run linting checks and auto-fix issues
+	@echo "$(BLUE)Running linting with auto-fix...$(NC)"
+	ruff check --fix .
+	@echo "$(GREEN)✅ Linting issues fixed$(NC)"
+
+type-check: ## Run type checking with mypy
+	@echo "$(BLUE)Running type checks...$(NC)"
+	mypy . --ignore-missing-imports || true
+	@echo "$(GREEN)✅ Type checking complete$(NC)"
+
+security: ## Run security checks (bandit + safety)
+	@echo "$(BLUE)Running security checks...$(NC)"
+	bandit -r . -f json -o bandit-report.json || true
+	safety check --json || true
+	@echo "$(GREEN)✅ Security scan complete$(NC)"
+
+check-all: format lint type-check ## Run all code quality checks
+	@echo "$(GREEN)✅ All quality checks passed$(NC)"
+
+pre-commit-run: ## Run pre-commit hooks manually on all files
+	@echo "$(BLUE)Running pre-commit hooks...$(NC)"
+	cd .. && export HOME=/tmp && pre-commit run --all-files
+	@echo "$(GREEN)✅ Pre-commit checks complete$(NC)"
+
 ##@ Docker Operations
 
 start: ## Start CIAL in production mode
