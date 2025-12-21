@@ -52,7 +52,7 @@ class PriceMonitorAgent(BaseAgent):
 
         self.alert_threshold = alert_threshold
         self.recommendation_threshold = recommendation_threshold
-        self.baseline_prices = {}  # Track baseline for comparisons
+        self.baseline_prices: dict[str, float] = {}  # Track baseline for comparisons
 
     async def on_start(self):
         """Initialize baseline prices when agent starts."""

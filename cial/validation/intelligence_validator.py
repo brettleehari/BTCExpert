@@ -398,7 +398,7 @@ class IntelligenceValidator:
             connector = registry.get_connector(message.source)
 
             if connector:
-                context["source_reliability"] = connector.reliability_score
+                context["source_reliability"] = float(connector.reliability_score)
             else:
                 context["source_reliability"] = 0.8  # Default
 

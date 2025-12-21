@@ -246,8 +246,8 @@ class AgentRegistry:
         Returns:
             Dict: Registry statistics
         """
-        status_counts = {}
-        type_counts = {}
+        status_counts: dict[str, int] = {}
+        type_counts: dict[str, int] = {}
 
         for agent in self._agents.values():
             # Count by status

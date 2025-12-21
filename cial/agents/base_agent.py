@@ -404,7 +404,7 @@ class BaseAgent(ABC):
 
     def _count_decisions_by_type(self) -> dict[str, int]:
         """Count decisions by type."""
-        counts = {}
+        counts: dict[str, int] = {}
         for decision in self._decisions:
             decision_type = decision.decision_type.value
             counts[decision_type] = counts.get(decision_type, 0) + 1

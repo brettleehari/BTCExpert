@@ -224,8 +224,8 @@ class LongTermMemory:
             return {}
 
         total = len(all_records)
-        by_type = {}
-        by_importance = {}
+        by_type: dict[str, int] = {}
+        by_importance: dict[str, int] = {}
 
         for record in all_records:
             rec_type = record.get("type", "unknown")

@@ -178,7 +178,9 @@ databases:
 #       deploy_on_push: true
 #     source_dir: /cial
 #     dockerfile_path: Dockerfile
-#     run_command: python -c "import asyncio; from infrastructure.caching import get_cache_manager; asyncio.run(get_cache_manager().warm_cache())"
+#     run_command: >
+#       python -c "import asyncio; from infrastructure.caching import get_cache_manager;
+#       asyncio.run(get_cache_manager().warm_cache())"
 
 # Static sites (optional - if you add frontend)
 # static_sites:

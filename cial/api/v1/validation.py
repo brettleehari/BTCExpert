@@ -127,7 +127,7 @@ async def cross_check_intelligence(intelligence_type: str, symbol: str):
         raise HTTPException(status_code=404, detail=f"No intelligence found for {symbol}")
 
     # Group by source
-    by_source = {}
+    by_source: dict[str, list[dict]] = {}
     for intel in recent_intel:
         source = intel.get("source", "unknown")
         if source not in by_source:
