@@ -91,6 +91,9 @@ except Exception as e:
   security-scan:
     needs: build-and-push
     runs-on: ubuntu-latest
+    env:
+      REGISTRY: docker.io
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/cial
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -107,6 +110,11 @@ except Exception as e:
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Trigger Render Deploy Hook
-        if: secrets.RENDER_DEPLOY_HOOK_URL != ''
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          HOOK_URL="${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          if [ -n "$HOOK_URL" ]; then
+            curl -X POST "$HOOK_URL"
+            echo "✅ Triggered Render deployment"
+          else
+            echo "⚠️  RENDER_DEPLOY_HOOK_URL not configured - skipping deployment trigger"
+          fi
