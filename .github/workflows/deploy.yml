@@ -331,20 +331,25 @@ jobs:
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs:  [build]
+    needs: [build, deploy-railway, deploy-gcp, deploy-digitalocean, deploy-render]
     if: always() && github.ref == 'refs/heads/main'
 
     steps:
       - name: Send Slack notification
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
         run: |
+          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "⚠️  SLACK_WEBHOOK_URL not configured - skipping notification"
+            exit 0
+          fi
+
           STATUS="${{ job.status }}"
           COLOR="good"
           if [ "$STATUS" != "success" ]; then
             COLOR="danger"
           fi
 
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          curl -X POST "$WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
             -d '{
               "attachments": [{
