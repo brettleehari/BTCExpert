@@ -349,8 +349,8 @@ jobs:
             -d '{
               "attachments": [{
                 "color": "'$COLOR'",
-                "title": "CIAL CI/CD Pipeline",
-                "text": "Build completed: '$STATUS'",
+                "title": "CIAL Build & Test",
+                "text": "Build status: '$STATUS'",
                 "fields": [
                   {"title": "Branch", "value": "'"${{ github.ref_name }}"'", "short": true},
                   {"title": "Commit", "value": "'"${{ github.sha }}"'", "short": true}
