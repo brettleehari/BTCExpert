@@ -3,10 +3,9 @@ CIAL Validation API Router
 Endpoints for intelligence validation and confidence scoring
 """
 
-from fastapi import APIRouter, Body, HTTPException
-
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
 from core.service_registry import get_service_registry
+from fastapi import APIRouter, Body, HTTPException
 from infrastructure.logging_config import logger
 from validation.intelligence_validator import get_intelligence_validator
 
@@ -245,7 +244,7 @@ async def get_consensus(symbol: str, intelligence_type: str | None = "price"):
             },
             "confidence": confidence,
             "sample_size": len(prices),
-            "sources": len(set(msg.get("source") for msg in recent_intel)),
+            "sources": len({msg.get("source") for msg in recent_intel}),
         }
 
     # Generic response for other types
@@ -253,7 +252,7 @@ async def get_consensus(symbol: str, intelligence_type: str | None = "price"):
         "symbol": symbol,
         "intelligence_type": intelligence_type,
         "sample_size": len(recent_intel),
-        "sources": len(set(msg.get("source") for msg in recent_intel)),
+        "sources": len({msg.get("source") for msg in recent_intel}),
     }
 
 

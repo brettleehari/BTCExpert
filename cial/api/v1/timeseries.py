@@ -7,12 +7,11 @@ Version: 1.0 - Production Ready
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-
 from api.models.responses import VersionedResponse, success_response
+from fastapi import APIRouter, HTTPException, Query
 from infrastructure.container import get_container
 from infrastructure.logging_config import logger
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -142,10 +141,18 @@ class CompressionInfoResponse(BaseModel):
     """,
 )
 async def get_time_series_data(
-    symbol: str | None = Query(None, description="Filter by cryptocurrency symbol (e.g., BTC)"),  # noqa: B008
-    intel_type: str | None = Query(None, description="Filter by intelligence type (e.g., PRICE)"),  # noqa: B008
-    start_time: datetime | None = Query(None, description="Start of time range (ISO 8601)"),  # noqa: B008
-    end_time: datetime | None = Query(None, description="End of time range (ISO 8601)"),  # noqa: B008
+    symbol: str | None = Query(
+        None, description="Filter by cryptocurrency symbol (e.g., BTC)"
+    ),  # noqa: B008
+    intel_type: str | None = Query(
+        None, description="Filter by intelligence type (e.g., PRICE)"
+    ),  # noqa: B008
+    start_time: datetime | None = Query(
+        None, description="Start of time range (ISO 8601)"
+    ),  # noqa: B008
+    end_time: datetime | None = Query(
+        None, description="End of time range (ISO 8601)"
+    ),  # noqa: B008
     interval: str = Query(  # noqa: B008
         "1 hour", description="Time bucket interval (e.g., '15 minutes', '1 hour', '1 day')"
     ),
@@ -267,7 +274,9 @@ async def get_daily_stats(
         container = get_container()
         postgres_manager = container.postgres_manager()
 
-        stats = await postgres_manager.get_daily_stats(intelligence_type=intel_type, days_back=days_back)
+        stats = await postgres_manager.get_daily_stats(
+            intelligence_type=intel_type, days_back=days_back
+        )
 
         return success_response(
             data=stats,
@@ -296,7 +305,9 @@ async def get_daily_stats(
     """,
 )
 async def get_recent_trends(
-    hours: int = Query(24, ge=1, le=168, description="Analysis period in hours (max 7 days)"),  # noqa: B008
+    hours: int = Query(
+        24, ge=1, le=168, description="Analysis period in hours (max 7 days)"
+    ),  # noqa: B008
     limit: int = Query(10, ge=1, le=50, description="Number of results per category"),  # noqa: B008
 ):
     """

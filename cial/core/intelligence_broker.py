@@ -203,7 +203,9 @@ class IntelligenceBroker:
 
         return message
 
-    def _classify_importance(self, message: IntelligenceMessage) -> IntelligenceMessage:  # noqa: C901
+    def _classify_importance(
+        self, message: IntelligenceMessage
+    ) -> IntelligenceMessage:  # noqa: C901
         """
         Classify intelligence importance based on type and data.
 

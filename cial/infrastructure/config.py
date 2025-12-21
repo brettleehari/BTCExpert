@@ -9,10 +9,9 @@ Performance: 20-50% faster validation
 from functools import lru_cache
 from urllib.parse import urlparse
 
+from infrastructure.logging_config import logger
 from pydantic import Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from infrastructure.logging_config import logger
 
 
 class Settings(BaseSettings):
@@ -33,7 +32,9 @@ class Settings(BaseSettings):
     API_VERSION: str = "1.0.0"
     ENVIRONMENT: str = Field(default="development", validation_alias="ENVIRONMENT")
     DEBUG: bool = Field(default=True, validation_alias="DEBUG")
-    HOST: str = Field(default="0.0.0.0", validation_alias="HOST")  # nosec B104 - Binding to all interfaces is intentional for containerized deployment
+    HOST: str = Field(
+        default="0.0.0.0", validation_alias="HOST"
+    )  # nosec B104 - Binding to all interfaces is intentional for containerized deployment
     PORT: int = Field(default=8000, validation_alias="PORT", ge=1, le=65535)
     LOG_LEVEL: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 

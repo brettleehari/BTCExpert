@@ -7,9 +7,8 @@ Endpoints for database optimization, statistics, and health.
 
 from typing import Any
 
-from fastapi import APIRouter, Query
-
 from api.models.responses import VersionedResponse, error_response, success_response
+from fastapi import APIRouter, Query
 from infrastructure.database_optimizer import get_database_optimizer
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
@@ -89,7 +88,9 @@ async def create_materialized_views() -> VersionedResponse[dict[str, Any]]:
 @router.post("/optimize/refresh-views")
 @trace_operation("db_refresh_materialized_views")
 async def refresh_materialized_views(
-    concurrent: bool = Query(True, description="Refresh concurrently (doesn't block reads)")  # noqa: B008
+    concurrent: bool = Query(
+        True, description="Refresh concurrently (doesn't block reads)"
+    )  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Refresh materialized views with latest data.
@@ -293,7 +294,9 @@ async def get_table_stats() -> VersionedResponse[list[dict[str, Any]]]:
 @router.get("/stats/queries")
 @trace_operation("db_query_stats")
 async def get_query_stats(
-    min_duration_ms: float = Query(0, description="Only show queries slower than this (ms)")  # noqa: B008
+    min_duration_ms: float = Query(
+        0, description="Only show queries slower than this (ms)"
+    )  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Get query performance statistics.

@@ -9,8 +9,6 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Path, Query, Request
-
 from api.models.intelligence import (
     IntelligenceStreamResponse,
     IntelligenceType,
@@ -22,6 +20,7 @@ from api.models.responses import (
 from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
+from fastapi import APIRouter, Body, HTTPException, Path, Query, Request
 from infrastructure.logging_config import logger
 
 router = APIRouter()
@@ -40,7 +39,9 @@ def _get_request_metadata(request: Request, start_time: float) -> dict[str, Any]
 @router.get("/stream/{stream_type}", response_model=IntelligenceStreamResponse)
 async def get_intelligence_stream(
     stream_type: str = Path(..., description="Intelligence stream type"),  # noqa: B008
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum messages to return"),  # noqa: B008
+    limit: int = Query(
+        default=100, ge=1, le=1000, description="Maximum messages to return"
+    ),  # noqa: B008
     symbol: str | None = Query(None, description="Filter by cryptocurrency symbol"),  # noqa: B008
 ):
     """
@@ -82,7 +83,8 @@ async def get_intelligence_stream(
 
 @router.get("/price/{symbol}/current")
 async def get_current_price(
-    request: Request, symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)")  # noqa: B008
+    request: Request,
+    symbol: str = Path(..., description="Cryptocurrency symbol (e.g., BTC, ETH)"),  # noqa: B008
 ):
     """
     Get current price intelligence for a cryptocurrency.
@@ -239,7 +241,9 @@ async def get_batch_prices(
 
 
 @router.get("/sentiment/{symbol}/current")
-async def get_current_sentiment(symbol: str = Path(..., description="Cryptocurrency symbol")):  # noqa: B008
+async def get_current_sentiment(
+    symbol: str = Path(..., description="Cryptocurrency symbol")
+):  # noqa: B008
     """
     Get current sentiment intelligence for a cryptocurrency.
 
@@ -264,7 +268,9 @@ async def get_current_sentiment(symbol: str = Path(..., description="Cryptocurre
 
 @router.post("/ingest")
 async def ingest_intelligence(
-    intelligence_type: IntelligenceType = Body(..., description="Type of intelligence"),  # noqa: B008
+    intelligence_type: IntelligenceType = Body(
+        ..., description="Type of intelligence"
+    ),  # noqa: B008
     source: str = Body(..., description="Data source identifier"),  # noqa: B008
     data: dict[str, Any] = Body(..., description="Intelligence data payload"),  # noqa: B008
     symbol: str | None = Body(None, description="Cryptocurrency symbol"),  # noqa: B008

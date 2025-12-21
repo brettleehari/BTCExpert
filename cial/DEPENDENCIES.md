@@ -388,6 +388,6 @@ Before upgrading any dependency:
 
 ---
 
-**Maintained by:** CIAL Team  
-**Last Review:** 2025-12-13  
+**Maintained by:** CIAL Team
+**Last Review:** 2025-12-13
 **Next Review:** 2026-03-13 (Quarterly)

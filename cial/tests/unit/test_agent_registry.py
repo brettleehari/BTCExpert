@@ -3,7 +3,6 @@ Unit tests for Agent Registry
 """
 
 import pytest
-
 from api.models.intelligence import (
     AgentCapabilities,
     AgentRegistration,

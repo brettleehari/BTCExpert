@@ -6,7 +6,6 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
-
 from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 from memory.short_term_memory import ShortTermMemory
 
@@ -83,7 +82,7 @@ def test_store_agent_context(stm):
 
 def test_get_agent_context(stm):
     """Test retrieving agent context"""
-    context = {"last_decision": "buy", "market_state": "bullish"}
+    _expected_context = {"last_decision": "buy", "market_state": "bullish"}
     stm.redis.client.get = Mock(return_value='{"last_decision": "buy", "market_state": "bullish"}')
 
     result = stm.get_agent_context("agent_001")

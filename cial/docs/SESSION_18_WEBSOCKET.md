@@ -317,7 +317,7 @@ function TradingDashboard() {
   return (
     <div>
       <div>Status: {connected ? '🟢 Connected' : '🔴 Disconnected'}</div>
-      
+
       <div>
         <h2>Intelligence Feed</h2>
         {messages.map((msg, i) => (
@@ -519,7 +519,7 @@ async def test_client(client_id):
             "type": "subscribe",
             "subscriptions": ["all"]
         }))
-        
+
         # Listen for 60 seconds
         async for message in ws:
             data = json.loads(message)
@@ -558,10 +558,10 @@ KAFKA_TOPIC_DEFI_EVENTS: str = "defi.events"
 ```javascript
 function connectWithRetry(url, maxRetries = 5) {
   let retries = 0;
-  
+
   function connect() {
     const ws = new WebSocket(url);
-    
+
     ws.onclose = () => {
       if (retries < maxRetries) {
         retries++;
@@ -570,10 +570,10 @@ function connectWithRetry(url, maxRetries = 5) {
         setTimeout(connect, delay);
       }
     };
-    
+
     return ws;
   }
-  
+
   return connect();
 }
 ```
@@ -598,7 +598,7 @@ from collections import deque
 class ThrottledClient:
     def __init__(self, max_queue=1000):
         self.queue = deque(maxlen=max_queue)
-    
+
     async def on_message(self, message):
         if len(self.queue) < self.queue.maxlen:
             self.queue.append(message)

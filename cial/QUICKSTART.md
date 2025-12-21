@@ -14,7 +14,7 @@ Do you have Docker installed?
 docker --version
 ```
 
-**Yes?** Great! Continue below.  
+**Yes?** Great! Continue below.
 **No?** See [PREREQUISITES.md](PREREQUISITES.md) for installation.
 
 ---

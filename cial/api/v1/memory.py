@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Path
-
 from memory.long_term_memory import get_long_term_memory
 from memory.short_term_memory import get_short_term_memory
 
@@ -15,7 +14,9 @@ router = APIRouter()
 
 
 @router.get("/stm/{agent_id}/context")
-async def get_agent_context(agent_id: str = Path(..., description="Agent identifier")):  # noqa: B008
+async def get_agent_context(
+    agent_id: str = Path(..., description="Agent identifier")
+):  # noqa: B008
     """
     Get agent's short-term memory context.
 
@@ -131,7 +132,9 @@ async def get_market_state(agent_id: str = Path(..., description="Agent identifi
 
 
 @router.delete("/stm/{agent_id}")
-async def clear_agent_memory(agent_id: str = Path(..., description="Agent identifier")):  # noqa: B008
+async def clear_agent_memory(
+    agent_id: str = Path(..., description="Agent identifier")
+):  # noqa: B008
     """
     Clear all short-term memory data for an agent.
 
@@ -151,7 +154,9 @@ async def clear_agent_memory(agent_id: str = Path(..., description="Agent identi
 
 
 @router.get("/stm/price/{symbol}")
-async def get_cached_price(symbol: str = Path(..., description="Cryptocurrency symbol")):  # noqa: B008
+async def get_cached_price(
+    symbol: str = Path(..., description="Cryptocurrency symbol")
+):  # noqa: B008
     """
     Get current cached price for a symbol from STM.
 

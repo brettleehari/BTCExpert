@@ -11,13 +11,12 @@ Features:
 """
 
 from fastapi import Request
-from slowapi import Limiter
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
-
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 from infrastructure.observability import metrics
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 
 def get_api_key_or_ip(request: Request) -> str:

@@ -103,7 +103,7 @@ curl -X POST http://localhost:8000/api/v1/auth/api-key \
 {
   "status": "success",
   "data": {
-    "api_key": "cial_abc123...",  
+    "api_key": "cial_abc123...",
     "name": "My Trading Bot",
     "type": "read_write",
     "rate_limit": 200,

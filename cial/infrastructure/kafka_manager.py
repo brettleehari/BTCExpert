@@ -6,13 +6,12 @@ Event streaming for real-time intelligence distribution to agents
 import json
 from typing import Any
 
-from kafka import KafkaAdminClient, KafkaConsumer, KafkaProducer
-from kafka.admin import NewTopic
-from kafka.errors import TopicAlreadyExistsError
-
 from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
+from kafka import KafkaAdminClient, KafkaConsumer, KafkaProducer
+from kafka.admin import NewTopic
+from kafka.errors import TopicAlreadyExistsError
 
 
 class KafkaManager:

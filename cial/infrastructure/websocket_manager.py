@@ -19,7 +19,6 @@ from enum import Enum
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
-
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 from infrastructure.observability import metrics, trace_operation

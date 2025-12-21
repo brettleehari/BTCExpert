@@ -6,7 +6,6 @@ Version: 1.0 - Production-Ready DI Container
 """
 
 from dependency_injector import containers, providers
-
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 

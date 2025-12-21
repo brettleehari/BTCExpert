@@ -7,10 +7,8 @@ Endpoints for token generation, API key creation, and security management.
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
-
 from api.models.responses import VersionedResponse, error_response, success_response
+from fastapi import APIRouter, Depends, Query
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
 from infrastructure.rate_limiter import RateLimits, limiter
@@ -22,6 +20,7 @@ from infrastructure.security import (
     get_security_manager,
     verify_api_key,
 )
+from pydantic import BaseModel
 
 router = APIRouter()
 

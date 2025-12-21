@@ -3,8 +3,6 @@ CIAL Agents API Router
 Endpoints for agent registration and management
 """
 
-from fastapi import APIRouter, Body, HTTPException, Query
-
 from api.models.intelligence import (
     Agent,
     AgentListResponse,
@@ -15,6 +13,7 @@ from api.models.intelligence import (
     AgentType,
 )
 from core.agent_registry import get_agent_registry
+from fastapi import APIRouter, Body, HTTPException, Query
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 
@@ -85,7 +84,9 @@ async def get_agent_status(agent_id: str):
 
 
 @router.put("/{agent_id}/status")
-async def update_agent_status(agent_id: str, status_update: AgentStatusUpdate = Body(...)):  # noqa: B008
+async def update_agent_status(
+    agent_id: str, status_update: AgentStatusUpdate = Body(...)
+):  # noqa: B008
     """
     Update agent status.
 
@@ -137,7 +138,9 @@ async def unregister_agent(agent_id: str):
 async def list_agents(
     agent_type: AgentType = Query(None, description="Filter by agent type"),  # noqa: B008
     status: AgentStatus = Query(None, description="Filter by status"),  # noqa: B008
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of agents to return"),  # noqa: B008
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of agents to return"
+    ),  # noqa: B008
 ):
     """
     List all registered agents with optional filtering.

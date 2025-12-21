@@ -19,13 +19,12 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from pydantic import BaseModel
-
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 from infrastructure.observability import metrics, trace_operation
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from pydantic import BaseModel
 
 # Security schemes
 security_scheme = HTTPBearer(auto_error=False)
@@ -364,7 +363,8 @@ async def get_current_user(
 
 
 async def verify_api_key(
-    request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme)  # noqa: B008
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),  # noqa: B008
 ) -> APIKey | None:
     """
     Dependency to verify API key from Authorization header.

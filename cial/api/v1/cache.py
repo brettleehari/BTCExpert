@@ -8,9 +8,8 @@ Endpoints for cache monitoring, warming, and invalidation.
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Query
-
 from api.models.responses import VersionedResponse, error_response, success_response
+from fastapi import APIRouter, Query
 from infrastructure.caching import get_cache_manager
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
@@ -230,7 +229,9 @@ async def set_cache_value(
     key: str = Query(..., description="Cache key"),  # noqa: B008
     value: Any = Query(..., description="Value to cache"),  # noqa: B008
     ttl: int | None = Query(None, description="Time-to-live in seconds"),  # noqa: B008
-    cache_tier: str = Query("both", description="Cache tier: 'memory', 'redis', or 'both'"),  # noqa: B008
+    cache_tier: str = Query(
+        "both", description="Cache tier: 'memory', 'redis', or 'both'"
+    ),  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Set value in cache (for testing/development).

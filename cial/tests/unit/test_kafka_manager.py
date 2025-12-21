@@ -6,7 +6,6 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 from infrastructure.kafka_manager import KafkaManager
 
