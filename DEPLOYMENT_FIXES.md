@@ -36,7 +36,76 @@ ERROR: No matching distribution found for timescaledb==0.5.2
 
 ---
 
-## Issue #2: Port Scan Timeout
+## Issue #2: Excessive Worker Processes (Memory Limit)
+
+### Error
+```
+Port scan timeout reached, no open ports detected.
+Process SpawnProcess-44: ... (multiprocessing errors)
+```
+
+### Root Cause
+- Dockerfile configured with `--workers 4` (4 worker processes)
+- Render free tier has **512MB RAM limit**
+- Each worker consumes ~128MB RAM
+- 4 workers × 128MB = 512MB+ → **Out of Memory (OOM)**
+- App crashes during worker spawn before binding to port 8000
+
+### Fix
+**File**: `cial/Dockerfile`
+
+```diff
+- CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
++ # Use single worker for Render free tier (512MB RAM limit)
++ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+**Verification**: Single worker fits within 512MB RAM, app starts successfully
+
+**Note**: For production with more RAM, can scale workers:
+```bash
+# For 1GB RAM: 2-4 workers
+# For 2GB RAM: 4-8 workers
+```
+
+---
+
+## Issue #3: Logging Level Incompatibility
+
+### Error
+```
+AttributeError: 'BoundLogger' object has no attribute 'WARNING'
+  File "/app/infrastructure/resilience.py", line 224
+    before_sleep=before_sleep_log(log, logger.WARNING),
+```
+
+### Root Cause
+- The `retry_with_backoff` decorator used `logger.WARNING` and `logger.INFO`
+- But `logger` is a structlog `BoundLogger`, not standard library logger
+- structlog doesn't have `WARNING`/`INFO` attributes
+- **Error happens at import time**, crashing before app even starts
+
+### Fix
+**File**: `cial/infrastructure/resilience.py`
+
+```diff
++ import logging
+
+  return retry(
+      ...
+-     before_sleep=before_sleep_log(log, logger.WARNING),
+-     after=after_log(log, logger.INFO),
++     before_sleep=before_sleep_log(log, logging.WARNING),
++     after=after_log(log, logging.INFO),
+      reraise=True
+  )
+```
+
+**Verification**: Module now imports successfully without AttributeError
+
+---
+
+## Issue #4: Port Scan Timeout
 
 ### Error
 ```
@@ -77,7 +146,7 @@ except Exception as e:
 
 ---
 
-## Issue #3: Connection String Parsing
+## Issue #5: Connection String Parsing
 
 ### Error (Suspected)
 - Render provides `REDIS_URL` and `DATABASE_URL` as full connection strings
@@ -323,15 +392,26 @@ curl https://cial-api.onrender.com/api/v1/intelligence
 
 ## Files Changed
 
-### 1. `cial/requirements.txt`
+### 1. `cial/Dockerfile`
+- Removed `--workers 4` flag from CMD
+- Single worker for free tier (prevents OOM)
+- Added comments explaining RAM constraints
+
+### 2. `cial/infrastructure/resilience.py`
+- Added `import logging` for standard library constants
+- Changed `logger.WARNING` → `logging.WARNING`
+- Changed `logger.INFO` → `logging.INFO`
+- Fixed compatibility with structlog + tenacity
+
+### 3. `cial/requirements.txt`
 - Removed invalid `timescaledb==0.5.2` package
 - Added comment explaining TimescaleDB is PostgreSQL extension
 
-### 2. `cial/main.py`
+### 4. `cial/main.py`
 - Added try/except around WebSocket manager initialization
 - Allows app to start without WebSocket support
 
-### 3. `cial/infrastructure/config.py`
+### 5. `cial/infrastructure/config.py`
 - Added `REDIS_URL` and `DATABASE_URL` optional fields
 - Added `parse_connection_urls()` model validator
 - Parses URLs into individual connection components
@@ -342,9 +422,11 @@ curl https://cial-api.onrender.com/api/v1/intelligence
 ## Commit History
 
 ```bash
+b3ae0f8 Fix Render deployment: reduce uvicorn workers to 1
+ed32d5c Add comprehensive codebase audit and import validation
+e4f1ceb Fix logging level constants for structlog compatibility
 87f32af Fix Render deployment startup issues
 4088368 Fix requirements.txt: remove non-existent timescaledb package
-62fb7ff Add Render deployment troubleshooting guide for secret conflicts
 ```
 
 ---
