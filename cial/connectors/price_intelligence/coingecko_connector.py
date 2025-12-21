@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 
 import httpx
+
 from api.models.intelligence import IntelligenceType, PriceIntelligence
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry

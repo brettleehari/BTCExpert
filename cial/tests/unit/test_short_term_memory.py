@@ -6,6 +6,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
+
 from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 from memory.short_term_memory import ShortTermMemory
 

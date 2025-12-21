@@ -19,12 +19,13 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from infrastructure.config import settings
-from infrastructure.logging_config import logger
-from infrastructure.observability import metrics, trace_operation
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
+
+from infrastructure.config import settings
+from infrastructure.logging_config import logger
+from infrastructure.observability import metrics, trace_operation
 
 # Security schemes
 security_scheme = HTTPBearer(auto_error=False)

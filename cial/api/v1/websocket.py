@@ -8,8 +8,9 @@ WebSocket endpoints for real-time intelligence delivery.
 import json
 from typing import Any
 
-from api.models.responses import VersionedResponse, error_response, success_response
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+
+from api.models.responses import VersionedResponse, error_response, success_response
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
 from infrastructure.websocket_manager import get_websocket_manager

@@ -9,6 +9,8 @@ import time
 import uuid
 from typing import Any
 
+from fastapi import APIRouter, Body, HTTPException, Path, Query, Request
+
 from api.models.intelligence import (
     IntelligenceStreamResponse,
     IntelligenceType,
@@ -20,7 +22,6 @@ from api.models.responses import (
 from connectors.price_intelligence.coingecko_connector import get_coingecko_connector
 from core.intelligence_broker import get_intelligence_broker
 from core.service_registry import get_service_registry
-from fastapi import APIRouter, Body, HTTPException, Path, Query, Request
 from infrastructure.logging_config import logger
 
 router = APIRouter()

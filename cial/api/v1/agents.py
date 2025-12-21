@@ -3,6 +3,8 @@ CIAL Agents API Router
 Endpoints for agent registration and management
 """
 
+from fastapi import APIRouter, Body, HTTPException, Query
+
 from api.models.intelligence import (
     Agent,
     AgentListResponse,
@@ -13,7 +15,6 @@ from api.models.intelligence import (
     AgentType,
 )
 from core.agent_registry import get_agent_registry
-from fastapi import APIRouter, Body, HTTPException, Query
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 

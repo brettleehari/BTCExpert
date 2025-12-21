@@ -9,12 +9,13 @@ from datetime import datetime
 from typing import Any
 
 import asyncpg
-from infrastructure.config import settings
-from infrastructure.logging_config import logger
-from infrastructure.resilience import get_bulkhead, get_health_check, retry_with_backoff
 from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+
+from infrastructure.config import settings
+from infrastructure.logging_config import logger
+from infrastructure.resilience import get_bulkhead, get_health_check, retry_with_backoff
 
 # SQLAlchemy Base
 Base = declarative_base()

@@ -20,6 +20,7 @@ from typing import Any
 from aiocache import Cache, caches
 from aiocache.plugins import BasePlugin
 from aiocache.serializers import JsonSerializer
+
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
 from infrastructure.observability import metrics, trace_operation

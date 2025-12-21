@@ -6,8 +6,9 @@ Tests the complete data flow: CoinGecko → Connector → Broker → Classificat
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from api.models.intelligence import IntelligenceType
 from fastapi.testclient import TestClient
+
+from api.models.intelligence import IntelligenceType
 from main import app
 
 client = TestClient(app)

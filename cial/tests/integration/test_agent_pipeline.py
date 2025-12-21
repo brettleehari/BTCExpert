@@ -8,6 +8,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
+
 from agents.sample_price_monitor_agent import PriceMonitorAgent
 from api.models.intelligence import IntelligenceImportance, IntelligenceMessage, IntelligenceType
 

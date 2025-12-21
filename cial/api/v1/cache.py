@@ -8,8 +8,9 @@ Endpoints for cache monitoring, warming, and invalidation.
 from datetime import datetime
 from typing import Any
 
-from api.models.responses import VersionedResponse, error_response, success_response
 from fastapi import APIRouter, Query
+
+from api.models.responses import VersionedResponse, error_response, success_response
 from infrastructure.caching import get_cache_manager
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation

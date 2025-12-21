@@ -7,6 +7,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
+
 from agents.base_agent import AgentDecision, AgentDecisionType, BaseAgent
 from api.models.intelligence import (
     AgentCapabilities,

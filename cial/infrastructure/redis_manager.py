@@ -6,9 +6,10 @@ Connection and management for Redis-based Short-Term Memory
 from typing import Any
 
 import redis
+from redis.asyncio import Redis as AsyncRedis
+
 from infrastructure.config import settings
 from infrastructure.logging_config import logger
-from redis.asyncio import Redis as AsyncRedis
 
 
 class RedisManager:

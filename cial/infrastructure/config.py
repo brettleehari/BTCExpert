@@ -9,9 +9,10 @@ Performance: 20-50% faster validation
 from functools import lru_cache
 from urllib.parse import urlparse
 
-from infrastructure.logging_config import logger
 from pydantic import Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from infrastructure.logging_config import logger
 
 
 class Settings(BaseSettings):

@@ -3,6 +3,7 @@ Unit tests for Intelligence Broker
 """
 
 import pytest
+
 from api.models.intelligence import (
     AgentCapabilities,
     AgentRegistration,

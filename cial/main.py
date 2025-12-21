@@ -7,6 +7,12 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST
+from slowapi.errors import RateLimitExceeded
+
 from api.v1.agents import router as agents_router
 from api.v1.auth import router as auth_router
 from api.v1.cache import router as cache_router
@@ -18,9 +24,6 @@ from api.v1.timeseries import router as timeseries_router
 from api.v1.validation import router as validation_router
 from api.v1.websocket import router as websocket_router
 from core.service_registry import initialize_default_connectors
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
 from infrastructure.config import settings
 from infrastructure.container import get_container, initialize_container, shutdown_container
 from infrastructure.logging_config import logger
@@ -30,8 +33,6 @@ from infrastructure.observability import (
     sync_resilience_metrics,
 )
 from infrastructure.rate_limiter import limiter, rate_limit_exceeded_handler
-from prometheus_client import CONTENT_TYPE_LATEST
-from slowapi.errors import RateLimitExceeded
 
 
 @asynccontextmanager

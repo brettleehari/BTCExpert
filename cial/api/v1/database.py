@@ -7,8 +7,9 @@ Endpoints for database optimization, statistics, and health.
 
 from typing import Any
 
-from api.models.responses import VersionedResponse, error_response, success_response
 from fastapi import APIRouter, Query
+
+from api.models.responses import VersionedResponse, error_response, success_response
 from infrastructure.database_optimizer import get_database_optimizer
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation

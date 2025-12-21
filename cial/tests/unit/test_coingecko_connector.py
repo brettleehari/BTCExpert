@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
+
 from api.models.intelligence import IntelligenceType, PriceIntelligence
 from connectors.price_intelligence.coingecko_connector import CoinGeckoConnector
 

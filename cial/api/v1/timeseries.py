@@ -7,11 +7,12 @@ Version: 1.0 - Production Ready
 
 from datetime import datetime
 
-from api.models.responses import VersionedResponse, success_response
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+
+from api.models.responses import VersionedResponse, success_response
 from infrastructure.container import get_container
 from infrastructure.logging_config import logger
-from pydantic import BaseModel
 
 router = APIRouter()
 

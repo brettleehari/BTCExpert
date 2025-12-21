@@ -9,9 +9,6 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from infrastructure.config import settings
-from infrastructure.logging_config import logger
-
 # OpenTelemetry imports
 from opentelemetry import metrics, trace
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
@@ -26,6 +23,9 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 
 # Prometheus imports
 from prometheus_client import Counter, Gauge, Histogram, Info, generate_latest
+
+from infrastructure.config import settings
+from infrastructure.logging_config import logger
 
 # ============================================================================
 # OPENTELEMETRY SETUP

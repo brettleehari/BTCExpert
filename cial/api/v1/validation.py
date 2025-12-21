@@ -3,9 +3,10 @@ CIAL Validation API Router
 Endpoints for intelligence validation and confidence scoring
 """
 
+from fastapi import APIRouter, Body, HTTPException
+
 from api.models.intelligence import IntelligenceMessage, IntelligenceType
 from core.service_registry import get_service_registry
-from fastapi import APIRouter, Body, HTTPException
 from infrastructure.logging_config import logger
 from validation.intelligence_validator import get_intelligence_validator
 
