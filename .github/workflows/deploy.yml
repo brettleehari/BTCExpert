@@ -236,25 +236,26 @@ jobs:
 
       - name: Test Docker image
         run: |
-          # Get the first tag from metadata to test
           IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
           echo "Testing image: $IMAGE_TAG"
           docker run --rm \
             -e DATABASE_URL="postgresql://test:test@localhost:5432/test" \
             -e REDIS_URL="redis://localhost:6379/0" \
             -e SECRET_KEY="test-secret-key-min-32-chars-for-testing" \
-            $IMAGE_TAG \
-            python -c "import sys; \
-            print('Testing critical imports...'); \
-            try: \
-                from infrastructure.resilience import retry_with_backoff; \
-                from infrastructure.config import settings; \
-                from main import app; \
-                print('✅ All imports successful'); \
-                sys.exit(0); \
-            except Exception as e: \
-                print(f'❌ Import failed: {e}'); \
-                sys.exit(1)"
+            "$IMAGE_TAG" \
+            python - <<'PY'
+            import sys
+            print('Testing critical imports...')
+            try:
+              from infrastructure.resilience import retry_with_backoff
+              from infrastructure.config import settings
+              from main import app
+              print('✅ All imports successful - ready for deployment')
+              sys.exit(0)
+            except Exception as exc:
+              print(f'❌ Import failed: {exc}')
+              sys.exit(1)
+            PY
 
   # ============================================================================
   # Job 5: Deploy to Production (Railway) - DISABLED
