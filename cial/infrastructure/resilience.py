@@ -23,7 +23,6 @@ from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
 import pybreaker
-from infrastructure.logging_config import logger
 from tenacity import (
     after_log,
     before_sleep_log,
@@ -32,6 +31,8 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+
+from infrastructure.logging_config import logger
 
 P = ParamSpec("P")
 T = TypeVar("T")

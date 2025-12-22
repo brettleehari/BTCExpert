@@ -21,10 +21,7 @@ from api.models.intelligence import (
 from core.agent_registry import get_agent_registry
 from infrastructure.kafka_manager import get_kafka_manager
 from infrastructure.logging_config import log_intelligence_event, logger
-from infrastructure.observability import (
-    record_intelligence_message,
-    trace_operation,
-)
+from infrastructure.observability import record_intelligence_message, trace_operation
 from memory.long_term_memory import get_long_term_memory
 from memory.short_term_memory import get_short_term_memory
 from validation.intelligence_validator import get_intelligence_validator

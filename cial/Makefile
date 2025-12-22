@@ -43,32 +43,31 @@ setup-pre-commit: ## Install pre-commit hooks
 
 format: ## Format code with Black and isort
 	@echo "$(BLUE)Formatting code...$(NC)"
-	black .
-	isort .
+	cd .. && ./scripts/lint-and-fix.sh
 	@echo "$(GREEN)✅ Code formatted$(NC)"
 
 lint: ## Run linting checks (ruff)
 	@echo "$(BLUE)Running linting checks...$(NC)"
-	ruff check .
+	cd .. && ./scripts/lint-and-fix.sh
 	@echo "$(GREEN)✅ Linting passed$(NC)"
 
 lint-fix: ## Run linting checks and auto-fix issues
 	@echo "$(BLUE)Running linting with auto-fix...$(NC)"
-	ruff check --fix .
+	cd .. && ./scripts/lint-and-fix.sh
 	@echo "$(GREEN)✅ Linting issues fixed$(NC)"
 
 security: ## Run security checks (bandit + safety)
 	@echo "$(BLUE)Running security checks...$(NC)"
-	bandit -r . -f json -o bandit-report.json || true
-	safety check --json || true
+	cd .. && ./scripts/lint-and-fix.sh
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
-check-all: format lint security ## Run all code quality checks
+check-all: ## Run all code quality checks
+	@cd .. && ./scripts/lint-and-fix.sh
 	@echo "$(GREEN)✅ All quality checks passed$(NC)"
 
 pre-commit-run: ## Run pre-commit hooks manually on all files
 	@echo "$(BLUE)Running pre-commit hooks...$(NC)"
-	cd .. && export HOME=/tmp && pre-commit run --all-files
+	cd .. && ./scripts/lint-and-fix.sh
 	@echo "$(GREEN)✅ Pre-commit checks complete$(NC)"
 
 ##@ Docker Operations

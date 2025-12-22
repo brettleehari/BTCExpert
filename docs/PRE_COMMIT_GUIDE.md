@@ -1,4 +1,4 @@
-# Pre-commit Hooks Setup Guide
+# Pre-commit Hooks Seup Guide
 
 This document explains the automated code quality checks configured for the CIAL project.
 

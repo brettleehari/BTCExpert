@@ -23,7 +23,7 @@ env:
 
 jobs:
   # ============================================================================
-  # Job 1: Code Quality Checks
+  # Job 1: Code Quality Checks (Unified)
   # ============================================================================
   lint:
     name: Lint and Format Check
@@ -41,18 +41,12 @@ jobs:
 
       - name: Install linting tools
         run: |
-          cd ${{ env.WORKING_DIR }}
-          pip install black ruff
+          pip install black ruff isort bandit pre-commit
 
-      - name: Run Black (format check)
+      - name: Run Unified Lint and Fix
         run: |
-          cd ${{ env.WORKING_DIR }}
-          black --check --diff .
-
-      - name: Run Ruff (linting)
-        run: |
-          cd ${{ env.WORKING_DIR }}
-          ruff check . --config=pyproject.toml
+          chmod +x ./scripts/lint-and-fix.sh
+          ./scripts/lint-and-fix.sh
 
   # ============================================================================
   # Job 2: Security Scanning
