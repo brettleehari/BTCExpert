@@ -14,7 +14,7 @@ fakeredis==2.24.0
 black==24.8.0
 ruff==0.6.0
 mypy==1.11.0
-isort==5.13.2
+isort==7.0.0
 flake8==7.1.0
 pylint==3.2.0
 
