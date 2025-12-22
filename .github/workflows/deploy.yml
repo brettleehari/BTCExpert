@@ -214,6 +214,7 @@ jobs:
           context: ./cial
           file: ./cial/Dockerfile
           push: true
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -221,7 +222,9 @@ jobs:
 
       - name: Test Docker image
         run: |
-          docker run --rm ${{ secrets.DOCKERHUB_USERNAME }}/cial:latest python --version
+          # Get the first tag from metadata to test
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          docker run --rm $IMAGE_TAG python --version
 
   # ============================================================================
   # Job 5: Deploy to Production (Railway) - DISABLED
