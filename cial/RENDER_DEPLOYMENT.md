@@ -326,11 +326,45 @@ render logs cial-api --tail -f
 
 ---
 
-## 🚀 Auto-Deploy Setup (Already Configured!)
+## 🐳 One-Command Deployments with Docker Hub Images
 
-**Your `render.yaml` is already configured** for auto-deploy.
+Our CI pipeline now publishes the `cial` image to Docker Hub. Instead of letting Render build the image from source, you can instruct Render to pull that pre-built artifact via `scripts/render-deploy.sh`.
 
-**Every time you push to main:**
+### Why this is faster
+
+- ✅ Avoids slow Docker builds inside Render
+- ✅ Guarantees production matches the image validated in CI
+- ✅ Works for multiple services at once (looped inside the script)
+
+### One-time setup
+
+1. In the Render dashboard, open your service → **Settings** → set **Auto Deploy** to **No** (or apply the provided `render.yaml`, which already sets `autoDeploy: false`).
+2. Copy each service ID from the Render URL or from **Deploys → Manual Deploy** (`srv-xxxxxxxx` format).
+3. Generate a Render API key (Dashboard → Account Settings → API Keys). Give it deploy scope.
+
+### Running the script
+
+```bash
+export RENDER_API_KEY="<your-render-api-key>"
+export RENDER_SERVICE_IDS="srv-abc123 srv-def456"  # one or multiple services
+export DOCKER_IMAGE_REPO="docker.io/brettleehari/cial"
+export IMAGE_TAG="$(git rev-parse --short HEAD)"   # or latest
+
+./scripts/render-deploy.sh
+```
+
+The script will:
+
+1. Call the Render Deploy API for each service ID.
+2. Tell Render to pull `docker.io/brettleehari/cial:${IMAGE_TAG}`.
+3. Leave your dashboard build logs clean—Render just pulls and runs.
+
+Monitor progress in the Render UI exactly as before (Events → Deploys). If anything fails, logs and health checks continue to work the same way.
+
+## 🚀 Auto-Deploy Setup (Legacy GitHub Builds)
+
+If you still prefer Render to build from source, you can re-enable auto-deploy:
+
 ```bash
 git add .
 git commit -m "Update feature X"
@@ -345,7 +379,7 @@ git push origin main
 # → Switches traffic to new version
 ```
 
-**Zero downtime deployments!**
+**Zero downtime deployments either way!**
 
 ---
 

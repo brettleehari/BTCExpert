@@ -18,8 +18,8 @@ services:
     # Health check
     healthCheckPath: /health
 
-    # Auto-deploy on push to main
-    autoDeploy: true
+    # Auto-deploy handled manually via scripts/render-deploy.sh
+    autoDeploy: false
 
     # Environment variables
     envVars:
