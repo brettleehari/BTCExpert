@@ -109,12 +109,22 @@ def get_circuit_breaker(
         if config is None:
             config = CircuitBreakerConfig(name=name)
 
+        # pybreaker 1.2.0 uses 'exclude' instead of 'expected_exception'
+        # To only catch specific exceptions, we exclude everything else
+        exclude_list = []
+        if config.expected_exception is not Exception:
+
+            def exclude_filter(e):
+                return not isinstance(e, config.expected_exception)
+
+            exclude_list.append(exclude_filter)
+
         breaker = pybreaker.CircuitBreaker(
             fail_max=config.fail_max,
-            timeout=config.timeout_duration,
-            expected_exception=config.expected_exception,
+            reset_timeout=config.timeout_duration,
             name=config.name,
             listeners=[_CircuitBreakerListener()],
+            exclude=exclude_list,
         )
         _circuit_breakers[name] = breaker
         logger.info(
@@ -180,7 +190,18 @@ def circuit_breaker(
         expected_exception=expected_exception,
     )
     breaker = get_circuit_breaker(name, config)
-    return breaker
+
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Coroutine[Any, Any, T]]:
+        if asyncio.iscoroutinefunction(func):
+
+            @wraps(func)
+            async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                return await breaker.call_async(func, *args, **kwargs)
+
+            return wrapper
+        return breaker(func)
+
+    return decorator
 
 
 # ============================================================================
