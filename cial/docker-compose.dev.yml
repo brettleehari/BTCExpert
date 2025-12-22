@@ -37,7 +37,7 @@ services:
 
   # PostgreSQL (same as production)
   postgres:
-    image: pgvector/pgvector:pg16-v0.7.4
+    image: pgvector/pgvector:0.7.4-pg16
     container_name: cial-postgres-dev
     environment:
       POSTGRES_DB: cial_ltm
@@ -52,7 +52,7 @@ services:
 
   # Redis (same as production)
   redis:
-    image: redis:7.2.4-alpine
+    image: redis:7.2-alpine
     container_name: cial-redis-dev
     ports:
       - "6379:6379"
@@ -61,7 +61,7 @@ services:
 
   # Zookeeper (same as production)
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0
+    image: confluentinc/cp-zookeeper:7.6.9
     container_name: cial-zookeeper-dev
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -73,7 +73,7 @@ services:
 
   # Kafka (same as production)
   kafka:
-    image: confluentinc/cp-kafka:7.6.0
+    image: confluentinc/cp-kafka:7.6.9
     container_name: cial-kafka-dev
     depends_on:
       - zookeeper

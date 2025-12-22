@@ -65,7 +65,7 @@ services:
   # PostgreSQL - Long-Term Memory (with pgvector extension)
   # ============================================================================
   postgres:
-    image: pgvector/pgvector:pg16-v0.7.4  # Pinned version
+    image: pgvector/pgvector:0.7.4-pg16  # Pinned version
     container_name: cial-postgres
     environment:
       POSTGRES_DB: cial_ltm
@@ -93,7 +93,7 @@ services:
   # Redis - Short-Term Memory & Caching
   # ============================================================================
   redis:
-    image: redis:7.2.4-alpine  # Pinned version
+    image: redis:7.2-alpine  # Stable minor version
     container_name: cial-redis
     command: >
       redis-server
@@ -120,7 +120,7 @@ services:
   # Zookeeper - Kafka Dependency
   # ============================================================================
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0  # Pinned version
+    image: confluentinc/cp-zookeeper:7.6.9  # Stable version
     container_name: cial-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -139,7 +139,7 @@ services:
   # Kafka - Event Stream
   # ============================================================================
   kafka:
-    image: confluentinc/cp-kafka:7.6.0  # Pinned version
+    image: confluentinc/cp-kafka:7.6.9  # Stable version
     container_name: cial-kafka
     depends_on:
       - zookeeper

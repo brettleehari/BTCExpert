@@ -109,7 +109,7 @@ jobs:
     # Service containers for testing
     services:
       postgres:
-        image: pgvector/pgvector:pg16-v0.7.4
+        image: pgvector/pgvector:0.7.4-pg16
         env:
           POSTGRES_PASSWORD: test_password
           POSTGRES_USER: test_user
@@ -123,7 +123,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:7.2.4-alpine
+        image: redis:7.2-alpine
         ports:
           - 6379:6379
         options: >-
