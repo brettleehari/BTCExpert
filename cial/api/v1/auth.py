@@ -7,10 +7,8 @@ Endpoints for token generation, API key creation, and security management.
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
-
 from api.models.responses import VersionedResponse, error_response, success_response
+from fastapi import APIRouter, Depends, Query, Request
 from infrastructure.logging_config import logger
 from infrastructure.observability import trace_operation
 from infrastructure.rate_limiter import RateLimits, limiter
@@ -22,6 +20,7 @@ from infrastructure.security import (
     get_security_manager,
     verify_api_key,
 )
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -47,7 +46,9 @@ class APIKeyRequest(BaseModel):
 @router.post("/token")
 @limiter.limit(RateLimits.STRICT)
 @trace_operation("auth_create_token")
-async def create_token(request: TokenRequest) -> VersionedResponse[dict[str, str]]:
+async def create_token(
+    request: Request, token_request: TokenRequest
+) -> VersionedResponse[dict[str, str]]:
     """
     Create JWT access token.
 
@@ -55,7 +56,8 @@ async def create_token(request: TokenRequest) -> VersionedResponse[dict[str, str
     In production, verify credentials against a user database.
 
     Args:
-        request: Token request with username and optional password
+        request: FastAPI request object (required for rate limiting)
+        token_request: Token request with username and optional password
 
     Returns:
         JWT access token with expiration time
@@ -75,7 +77,7 @@ async def create_token(request: TokenRequest) -> VersionedResponse[dict[str, str
 
         # Create token
         token = security_manager.create_access_token(
-            data={"sub": request.username, "scopes": request.scopes}
+            data={"sub": token_request.username, "scopes": token_request.scopes}
         )
 
         return success_response(
@@ -129,7 +131,9 @@ async def verify_token(
 @router.post("/api-key")
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_create_api_key")
-async def create_api_key(request: APIKeyRequest) -> VersionedResponse[dict[str, Any]]:
+async def create_api_key(
+    request: Request, api_key_request: APIKeyRequest
+) -> VersionedResponse[dict[str, Any]]:
     """
     Create a new API key.
 
@@ -137,7 +141,8 @@ async def create_api_key(request: APIKeyRequest) -> VersionedResponse[dict[str, 
     Store it securely!
 
     Args:
-        request: API key configuration
+        request: FastAPI request object (required for rate limiting)
+        api_key_request: API key configuration
 
     Returns:
         API key details including the key itself (only shown once)
@@ -163,10 +168,10 @@ async def create_api_key(request: APIKeyRequest) -> VersionedResponse[dict[str, 
         security_manager = get_security_manager()
 
         api_key_obj = security_manager.create_api_key(
-            name=request.name,
-            key_type=request.type,
-            rate_limit=request.rate_limit,
-            metadata=request.metadata,
+            name=api_key_request.name,
+            key_type=api_key_request.type,
+            rate_limit=api_key_request.rate_limit,
+            metadata=api_key_request.metadata,
         )
 
         return success_response(
@@ -194,7 +199,8 @@ async def create_api_key(request: APIKeyRequest) -> VersionedResponse[dict[str, 
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_list_api_keys")
 async def list_api_keys(
-    include_inactive: bool = Query(False, description="Include revoked keys")  # noqa: B008
+    request: Request,
+    include_inactive: bool = Query(False, description="Include revoked keys"),  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     List all API keys (without the actual key values).
@@ -203,6 +209,7 @@ async def list_api_keys(
     upon creation).
 
     Args:
+        request: FastAPI request object (required for rate limiting)
         include_inactive: Whether to include revoked/inactive keys
 
     Returns:
@@ -229,7 +236,7 @@ async def list_api_keys(
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_revoke_api_key")
 async def revoke_api_key(
-    api_key: str = Query(..., description="API key to revoke")  # noqa: B008
+    request: Request, api_key: str = Query(..., description="API key to revoke")  # noqa: B008
 ) -> VersionedResponse[dict[str, Any]]:
     """
     Revoke an API key.
@@ -237,6 +244,7 @@ async def revoke_api_key(
     Revoked keys can no longer be used for authentication.
 
     Args:
+        request: FastAPI request object (required for rate limiting)
         api_key: The API key to revoke
 
     Returns:
@@ -304,9 +312,12 @@ async def validate_api_key_endpoint(
 @router.get("/stats")
 @limiter.limit(RateLimits.ADMIN)
 @trace_operation("auth_stats")
-async def get_security_stats() -> VersionedResponse[dict[str, Any]]:
+async def get_security_stats(request: Request) -> VersionedResponse[dict[str, Any]]:
     """
     Get security and authentication statistics.
+
+    Args:
+        request: FastAPI request object (required for rate limiting)
 
     Returns:
         Security metrics including auth attempts, API key counts, etc.
