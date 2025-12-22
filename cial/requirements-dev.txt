@@ -35,7 +35,7 @@ mkdocs-material==9.5.0
 mkdocstrings[python]==0.25.0
 
 # Development tools
-ipython==8.27.0
+ipython==9.8.0
 ipdb==0.13.13
 watchdog==4.0.0  # File watching for auto-reload
 
