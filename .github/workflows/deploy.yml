@@ -180,7 +180,7 @@ jobs:
   # Job 4: Build Docker Image
   # ============================================================================
   build:
-    name: Build Docker Image
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: [test, security]
 
@@ -191,131 +191,149 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/cial
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./cial
           file: ./cial/Dockerfile
-          push: false
-          tags: cial:${{ github.sha }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Test Docker image
         run: |
-          docker run --rm cial:${{ github.sha }} python --version
+          docker run --rm ${{ secrets.DOCKERHUB_USERNAME }}/cial:latest python --version
 
   # ============================================================================
-  # Job 5: Deploy to Production (Railway)
+  # Job 5: Deploy to Production (Railway) - DISABLED
   # ============================================================================
-  deploy-railway:
-    name: Deploy to Railway (Production)
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: |
-          cd ${{ env.WORKING_DIR }}
-          railway up --service cial
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-  # ============================================================================
-  # Job 6: Deploy to Google Cloud Run
-  # ============================================================================
-  deploy-gcp:
-    name: Deploy to Google Cloud Run
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Build and Deploy to Cloud Run
-        run: |
-          cd ${{ env.WORKING_DIR }}
-          gcloud builds submit --config cloudbuild.yaml .
+  # deploy-railway:
+  #   name: Deploy to Railway (Production)
+  #   runs-on: ubuntu-latest
+  #   needs: [build]
+  #   if: false # github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment: production
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install Railway CLI
+  #       run: npm install -g @railway/cli
+  #
+  #     - name: Deploy to Railway
+  #       run: |
+  #         cd ${{ env.WORKING_DIR }}
+  #         railway up --service cial
+  #       env:
+  #         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   # ============================================================================
-  # Job 7: Deploy to DigitalOcean App Platform
+  # Job 6: Deploy to Google Cloud Run - DISABLED
   # ============================================================================
-  deploy-digitalocean:
-    name: Deploy to DigitalOcean
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Update App Platform deployment
-        run: |
-          # Get app ID (or use a fixed app ID)
-          APP_ID=$(doctl apps list --format ID --no-header | head -n 1)
-
-          # Trigger redeployment
-          doctl apps create-deployment $APP_ID
-
-  # ============================================================================
-  # Job 8: Deploy to Render.com
-  # ============================================================================
-  deploy-render:
-    name: Deploy to Render
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    steps:
-      - name: Trigger Render deployment
-        run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+  # deploy-gcp:
+  #   name: Deploy to Google Cloud Run
+  #   runs-on: ubuntu-latest
+  #   needs: [build]
+  #   if: false # github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment: production
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Authenticate to Google Cloud
+  #       uses: google-github-actions/auth@v2
+  #       with:
+  #         credentials_json: ${{ secrets.GCP_SA_KEY }}
+  #
+  #     - name: Set up Cloud SDK
+  #       uses: google-github-actions/setup-gcloud@v2
+  #
+  #     - name: Build and Deploy to Cloud Run
+  #       run: |
+  #         cd ${{ env.WORKING_DIR }}
+  #         gcloud builds submit --config cloudbuild.yaml .
 
   # ============================================================================
-  # Job 9: Staging Deployment (Develop Branch)
+  # Job 7: Deploy to DigitalOcean App Platform - DISABLED
   # ============================================================================
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
+  # deploy-digitalocean:
+  #   name: Deploy to DigitalOcean
+  #   runs-on: ubuntu-latest
+  #   needs: [build]
+  #   if: false # github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment: production
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install doctl
+  #       uses: digitalocean/action-doctl@v2
+  #       with:
+  #         token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+  #
+  #     - name: Update App Platform deployment
+  #       run: |
+  #         # Get app ID (or use a fixed app ID)
+  #         APP_ID=$(doctl apps list --format ID --no-header | head -n 1)
+  #
+  #         # Trigger redeployment
+  #         doctl apps create-deployment $APP_ID
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  # ============================================================================
+  # Job 8: Deploy to Render.com - DISABLED
+  # ============================================================================
+  # deploy-render:
+  #   name: Deploy to Render
+  #   runs-on: ubuntu-latest
+  #   needs: [build]
+  #   if: false # github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment: production
+  #
+  #   steps:
+  #     - name: Trigger Render deployment
+  #       run: |
+  #         curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
 
-      - name: Deploy to staging environment
-        run: |
-          echo "Deploying to staging..."
-          # Add your staging deployment commands here
+  # ============================================================================
+  # Job 9: Staging Deployment (Develop Branch) - DISABLED
+  # ============================================================================
+  # deploy-staging:
+  #   name: Deploy to Staging
+  #   runs-on: ubuntu-latest
+  #   needs: [build]
+  #   if: false # github.ref == 'refs/heads/develop' && github.event_name == 'push'
+  #   environment: staging
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Deploy to staging environment
+  #       run: |
+  #         echo "Deploying to staging..."
+  #         # Add your staging deployment commands here
 
   # ============================================================================
   # Job 10: Notification
