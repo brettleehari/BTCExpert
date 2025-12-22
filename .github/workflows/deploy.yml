@@ -196,7 +196,29 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+- name: Log in to Docker Hub
+  uses:  docker/login-action@v3
+  with:
+    username:  ${{ secrets.DOCKERHUB_USERNAME }}
+    password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+- name:  Verify Docker Hub login  # Add this step
+  run: |
+    if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+      echo "❌ DOCKERHUB_USERNAME is not set"
+      exit 1
+    else
+      echo "✅ DOCKERHUB_USERNAME is configured"
+    fi
+    
+    if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+      echo "❌ DOCKERHUB_TOKEN is not set"
+      exit 1
+    else
+      echo "✅ DOCKERHUB_TOKEN is configured (length: ${#DOCKERHUB_TOKEN})"
+    fi
+  env:
+    DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
