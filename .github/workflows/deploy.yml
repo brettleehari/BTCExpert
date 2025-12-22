@@ -1,6 +1,3 @@
-# GitHub Actions CI/CD Pipeline for CIAL
-# Automatically tests and deploys on push to main branch
-
 name: CI/CD Pipeline
 
 on:
@@ -156,7 +153,8 @@ jobs:
           ENVIRONMENT: testing
         # run: |
         #   cd ${{ env.WORKING_DIR }}
-        #   pytest -v --cov=. --cov-report=xml --cov-report=html --cov-fail-under=20
+        #   pytest -v --cov=. --cov-report=xml --cov-report=html \
+        #     --cov-fail-under=20
         run: echo "Skipping tests temporarily"
 
       - name: Upload coverage to Codecov
@@ -196,29 +194,23 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-- name: Log in to Docker Hub
-  uses:  docker/login-action@v3
-  with:
-    username:  ${{ secrets.DOCKERHUB_USERNAME }}
-    password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-- name:  Verify Docker Hub login  # Add this step
-  run: |
-    if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
-      echo "❌ DOCKERHUB_USERNAME is not set"
-      exit 1
-    else
-      echo "✅ DOCKERHUB_USERNAME is configured"
-    fi
-    
-    if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-      echo "❌ DOCKERHUB_TOKEN is not set"
-      exit 1
-    else
-      echo "✅ DOCKERHUB_TOKEN is configured (length: ${#DOCKERHUB_TOKEN})"
-    fi
-  env:
-    DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Verify Docker Hub login
+        run: |
+          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+            echo "❌ DOCKERHUB_USERNAME is not set"
+            exit 1
+          else
+            echo "✅ DOCKERHUB_USERNAME is configured"
+          fi
+
+          if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "❌ DOCKERHUB_TOKEN is not set"
+            exit 1
+          else
+            echo "✅ DOCKERHUB_TOKEN is configured"
+          fi
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -252,22 +244,17 @@ jobs:
             -e REDIS_URL="redis://localhost:6379/0" \
             -e SECRET_KEY="test-secret-key-min-32-chars-for-testing" \
             $IMAGE_TAG \
-            python -c "
-import sys
-print('Testing critical imports...')
-try:
-    from infrastructure.resilience import retry_with_backoff
-    print('✅ resilience module imported successfully')
-    from infrastructure.config import settings
-    print('✅ config module imported successfully')
-    from main import app
-    print('✅ main module imported successfully')
-    print('✅ All imports successful - ready for deployment')
-    sys.exit(0)
-except Exception as e:
-    print(f'❌ Import failed: {e}')
-    sys.exit(1)
-"
+            python -c "import sys; \
+            print('Testing critical imports...'); \
+            try: \
+                from infrastructure.resilience import retry_with_backoff; \
+                from infrastructure.config import settings; \
+                from main import app; \
+                print('✅ All imports successful'); \
+                sys.exit(0); \
+            except Exception as e: \
+                print(f'❌ Import failed: {e}'); \
+                sys.exit(1)"
 
   # ============================================================================
   # Job 5: Deploy to Production (Railway) - DISABLED
@@ -401,7 +388,8 @@ except Exception as e:
 
           STATUS="success"
           COLOR="good"
-          if [ "${{ needs.build.result }}" != "success" ]; then
+          if [ "${{ needs.build.result }}" != "success" ]
+          then
             STATUS="failed"
             COLOR="danger"
           fi
@@ -428,7 +416,7 @@ except Exception as e:
 # Add these in: GitHub Repo → Settings → Secrets and variables → Actions
 #
 # For Railway:
-#   RAILWAY_TOKEN - Get from Railway dashboard → Account → Tokens
+#   RAILWAY_TOKEN - Get from Railway dashboard
 #
 # For Docker Hub:
 #   DOCKERHUB_USERNAME - Your Docker Hub username
