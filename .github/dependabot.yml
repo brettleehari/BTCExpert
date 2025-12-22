@@ -1,5 +1,6 @@
 # Dependabot Configuration for CIAL
 # Automatically checks for dependency updates and security vulnerabilities
+# Works with dependabot-auto-merge.yml to automatically merge safe updates
 
 version: 2
 updates:
@@ -14,26 +15,28 @@ updates:
     labels:
       - "dependencies"
       - "python"
-    reviewers:
-      - "cial-team"
-    assignees:
-      - "cial-team"
+      - "dependabot"
     commit-message:
       prefix: "deps"
       include: "scope"
     # Only update patch and minor versions automatically
     # Major versions require manual review
     versioning-strategy: increase-if-necessary
+    # Group minor and patch updates together
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     
   # Docker dependencies
   - package-ecosystem: "docker"
     directory: "/cial"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
-    open-pull-requests-limit: 3
-    labels:
+      - "dependabot
       - "dependencies"
       - "docker"
     reviewers:
@@ -41,10 +44,7 @@ updates:
     assignees:
       - "cial-team"
     commit-message:
-      prefix: "docker"
-      include: "scope"
-    
-  # GitHub Actions (if used)
+      prefix: "doc
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -54,6 +54,15 @@ updates:
     open-pull-requests-limit: 2
     labels:
       - "dependencies"
+      - "github-actions"
+      - "dependabot"
+    commit-message:
+      prefix: "ci"
+    # Group GitHub Actions updates
+    groups:
+      github-actions:
+        patterns:
+          - "*cies"
       - "github-actions"
     commit-message:
       prefix: "ci"
