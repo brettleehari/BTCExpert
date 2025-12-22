@@ -246,7 +246,28 @@ jobs:
         run: |
           # Get the first tag from metadata to test
           IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-          docker run --rm $IMAGE_TAG python --version
+          echo "Testing image: $IMAGE_TAG"
+          docker run --rm \
+            -e DATABASE_URL="postgresql://test:test@localhost:5432/test" \
+            -e REDIS_URL="redis://localhost:6379/0" \
+            -e SECRET_KEY="test-secret-key-min-32-chars-for-testing" \
+            $IMAGE_TAG \
+            python -c "
+import sys
+print('Testing critical imports...')
+try:
+    from infrastructure.resilience import retry_with_backoff
+    print('✅ resilience module imported successfully')
+    from infrastructure.config import settings
+    print('✅ config module imported successfully')
+    from main import app
+    print('✅ main module imported successfully')
+    print('✅ All imports successful - ready for deployment')
+    sys.exit(0)
+except Exception as e:
+    print(f'❌ Import failed: {e}')
+    sys.exit(1)
+"
 
   # ============================================================================
   # Job 5: Deploy to Production (Railway) - DISABLED
@@ -394,7 +415,8 @@ jobs:
                 "text": "Deployment to production: '$STATUS'",
                 "fields": [
                   {"title": "Branch", "value": "'"${{ github.ref_name }}"'", "short": true},
-                  {"title": "Commit", "value": "'"${{ github.sha }}"'", "short": true}
+                  {"title": "Commit", "value": "'"${{ github.sha }}"'", "short": true},
+                  {"title": "Docker Image", "value": "docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cial:latest", "short": false}
                 ]
               }]
             }'
@@ -407,6 +429,10 @@ jobs:
 #
 # For Railway:
 #   RAILWAY_TOKEN - Get from Railway dashboard → Account → Tokens
+#
+# For Docker Hub:
+#   DOCKERHUB_USERNAME - Your Docker Hub username
+#   DOCKERHUB_TOKEN - Your Docker Hub Personal Access Token (PAT)
 #
 # For Google Cloud:
 #   GCP_SA_KEY - Service account JSON key with roles:
